@@ -3,13 +3,23 @@ from api_wrappers.APIWrapper import APIWrapper
 from api_wrappers.BinanceWrapper import BinanceWrapper
 from strategies import CNN_Strategy
 from Portfolio import Portfolio
-from .helpers.data_processing import *
-
 from pandas import DataFrame
 
 from strategies.example_strategies import ModelStrat
-from .helpers.saving_models import save_model, load_model
 from models.GRU.GRU import GRUnet
+
+import torch
+
+def save_model(model, path):
+    """Save the weights of model to path"""
+    torch.save(model.state_dict(), path)
+
+def load_model(model, path):
+    """Load weights from path model"""
+    try:
+        model.load_state_dict(torch.load(path))
+    except:
+        print("Failed to load model weights from {}.".format(path))
 
 class BackTest:
 	"""
@@ -21,6 +31,7 @@ class BackTest:
 	Methods:
 
 	"""
+	
 
 	def __init__(self, api_wrapper, strategy):
 		"""Initialize BackTest instance"""
@@ -40,13 +51,3 @@ class BackTest:
 
 		model_strat = ModelStrat(model)
 		return "{}".format(self.gekko.backtest(model_strat, candles_df))
-
-
-bw = BinanceWrapper('5lJ0uGit9PuUxHka3hBWhPmsi7dWyxEwvEntUZFKmm0xfNz3VjHWi5WSr5W1VBJV','BFWVs8ko7Cd4sjdQ9amGJTnToGWy9TbQWIjeorSCj23FGiwFaknzkgLPcrgWrxsw')
-
-gru = GRUnet(num_features=12, num_rows=30, batch_size=64, hidden_size=500, num_layers=5).float()
-load_model(gru, 'gru_weights')
-
-strat = ModelStrat(gru)
-
-b = BackTest(bw, strat)

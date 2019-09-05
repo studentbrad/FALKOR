@@ -5,7 +5,7 @@ import torchvision.models as models
 
 
 class GRUnet(nn.Module):
-	def __init__(self, num_features, num_rows, batch_size, hidden_size):
+	def __init__(self, num_features, num_rows, batch_size, hidden_size, num_layers):
 		"""Initialize the model by setting up the layers"""
 		super(GRUnet, self).__init__()
 		
@@ -14,11 +14,11 @@ class GRUnet(nn.Module):
 		self.num_rows = num_rows
 		self.batch_size = batch_size
 		self.hidden_size = hidden_size
-		self.n_layers = 1
+		self.num_layers = num_layers
 		
 		# RNN-GRU Layer
-		self.rnn = nn.GRU(batch_firs=True, input_size=self.num_features,
-						  hidden_size=self.hidden_size)
+		self.rnn = nn.GRU(batch_first=True, input_size=self.num_features,
+						  hidden_size=self.hidden_size, num_layers = self.num_layers)
 		
 		# init GRU hidden layer
 		self.hidden = self.init_hidden(batch_size=self.batch_size, hidden_size=hidden_size)
@@ -68,5 +68,5 @@ class GRUnet(nn.Module):
 		"""Initializes hidden state"""
 		
 		# Creates initial hidden state for GRU of zeroes
-		hidden = torch.ones(1, self.num_rows, hidden_size).cuda()
+		hidden = torch.ones(self.num_layers, self.batch_size, hidden_size).cuda()
 		return hidden

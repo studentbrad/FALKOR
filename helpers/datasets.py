@@ -21,7 +21,6 @@ class DFTimeSeriesDataset(Dataset):
     def __getitem__(self, i):
         time_series_arr =  np.array(self.time_series[i])
         label = np.array(self.labels[i])
-        
         return time_series_arr, label
 
 class ChartImageDataset(Dataset):

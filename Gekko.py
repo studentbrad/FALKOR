@@ -3,6 +3,9 @@ from BookWorm import BookWorm
 from Portfolio import Portfolio
 
 from strategies.Strategy import Strategy
+from helpers.datasets import DFTimeSeriesDataset
+
+from torch.utils.data import *
 
 class Gekko:
     """
@@ -100,50 +103,50 @@ class Gekko:
         for security in self.portfolio.securities_trading:
             trade_info = self._trade(security)
             print(trade_info)
+            
+            
+    def _test(test_gen, model, optim, error_func):
+        with torch.set_grad_enabled(False):
+            losses = []
 
-    def _split_into_periods(self, candles_df, split_row_num):
-        """split candles_df into a list of smaller DataFrames each
-        with row_num of rows"""
-        orig_row_num = candles_df.shape[0]
+            for batch, labels in valid_gen:
+                batch, labels = batch.cuda().float(), labels.cuda().float()
 
-        candles_split = []
-        for i in range(orig_row_num - split_row_num):
-            small_df = candles_df[i : i + split_row_num]
-            candles_split.append(small_df)
+                # set to eval mode
+                model.eval()
 
-        return candles_split
+                # clear gradients
+                model.zero_grad()
 
-    def _curr_fut_prices(self, candles_df, split_row_num):
-        """used in concordance with _split_into_periods().Returns a
-        list of curr_price and fut_price for each item yi inside 
-        y = _split_into_periods(x)"""
-        orig_row_num = candles_df.shape[0]
+                output = model(batch)
+                loss = error_func(output, labels)
 
-        curr_prices, fut_prices = [], []
+                losses.append(loss)
 
-        for i in range(orig_row_num - split_row_num):
-            curr_prices.append(candles_df[i])
-            fut_prices.append(candles_df[i+split_row_num])
-
-        return curr_prices, fut_prices
-
-    def backtest(self, strategy, candles_df):
-        split_candles = self._split_into_periods(candles_df, 30)
-        curr_prices, fut_prices = self._curr_fut_prices(candles_df, 30)
-
-        total_profit = 0
-        for i in range(len(split_candles)):
-            input_df = split_candles[i]
-
-            pred = strategy.generate_signals(input_df)
-
-            money = 0
-            if pred > 1:
-                money -= curr_prices[i]
-                money += fut_prices[i]
-            elif pred < 1:
-                money += curr_prices[i]
-
-            total_profit += money
+        return round(float(sum(losses) / len(losses)), 6)
+                     
+    def backtest(self, strategy, dataset, model_name='gru'):
+        """Run strategy on test_data to see how much profit strategy would've made if it bought on every buy signal 
+        and sold on every sell signal"""
         
-        return total_profit
+        dataloader = DataLoader(dataset, drop_last=True)        
+        
+        corr_preds, incorr_preds = 0, 0
+        
+        for batch, labels in dataloader:
+            batch, labels = batch.cuda().float(), labels.cuda().float()
+            
+            pred = strategy.generate_signals(batch)
+            pred = pred.squeeze()[29]
+            ret = labels.item()
+                     
+            if pred > 0 and ret > 0:
+                 corr_preds += 1
+            elif pred > 0 and ret < 0:
+                 incorr_preds +=1
+            elif pred < 0 and ret < 0:
+                 corr_preds += 1
+            elif pred < 0 and ret > 0:
+                 incorr_preds += 1                
+        
+        return corr_preds, incorr_preds

@@ -11,34 +11,35 @@ from helpers.datasets import DFTimeSeriesDataset, ChartImageDataset
 import torch
 
 def save_model(model, path):
-    """Save the weights of model to path"""
-    torch.save(model.state_dict(), path)
+	"""Save the weights of model to path"""
+	torch.save(model.state_dict(), path)
 
 def load_model(model, path):
-    """Load weights from path model"""
-    try:
-        model.load_state_dict(torch.load(path))
-    except:
-        print("Failed to load model weights from {}.".format(path))
-	def normalize_series(self, ser):
-		return (ser-ser.min())/(ser.max()-ser.min())
-    
-    def create_charts(candles_sliced, save_path):
-    """Create a chart image for each in sliced_candles and return a list of paths to those images"""
-    from tqdm import tqdm_notebook as tqdm
-    import warnings
-    warnings.filterwarnings("ignore")
-    
-    i = 0
-    paths_to_images = []
-    for small_df in tqdm(candles_sliced):
-        chart = Charting(small_df, 'time', 'close')
-        
-        path = save_path + 'chart_{}.png'.format(i)
-        chart.chart_to_image(path)
-        paths_to_images.append(path)
-        i += 1
-    return paths_to_images 
+	"""Load weights from path model"""
+	try:
+		model.load_state_dict(torch.load(path))
+	except:
+		print("Failed to load model weights from {}.".format(path))
+		
+def normalize_series(self, ser):
+	return (ser-ser.min())/(ser.max()-ser.min())
+
+def create_charts(candles_sliced, save_path):
+	"""Create a chart image for each in sliced_candles and return a list of paths to those images"""
+	from tqdm import tqdm_notebook as tqdm
+	import warnings
+	warnings.filterwarnings("ignore")
+		
+	i = 0
+	paths_to_images = []
+	for small_df in tqdm(candles_sliced):
+		chart = Charting(small_df, 'time', 'close')
+		
+		path = save_path + 'chart_{}.png'.format(i)
+		chart.chart_to_image(path)
+		paths_to_images.append(path)	
+		i += 1
+	return paths_to_images 
 
 class BackTest:
 	"""
@@ -80,29 +81,29 @@ class BackTest:
 		orig_row_num = candles_df.shape[0]
 
 		curr_prices, fut_prices = [], []
-        
+		
 		df = candles_df.reset_index(drop=True)
-        
+		
 		for i in range(orig_row_num - split_row_num):
 			curr_prices.append( df.loc[df.index[i], 'close'] )
 			fut_prices.append( df.loc[df.index[i+split_row_num], 'close'] )
 
 		return curr_prices, fut_prices
-    
+	
 	def price_returns(self, df, num_rows=30, num_into_fut=5, step=10):
 		labels = []
-    
+	
 		for row_i in range(0, df.shape[0] - num_rows - num_into_fut, step):
 			# skip all iterations while row_i < num_rows since nothing yet to create a label for
 			if row_i <= num_rows: continue
-        
+		
 			vf, vi = df['close'][row_i+num_into_fut], df['close'][row_i]
 			price_return = (vf - vi) / vi
 			labels.append(price_return)
 		return labels
-    
+	
 
-       
+	   
 
 	def profit_test(self, candles_df, model_type):
 		"""
@@ -112,16 +113,16 @@ class BackTest:
 		"""
 		candles_df = candles_df.drop('time', axis=1).reset_index(drop=True)
 		price_returnz = self.price_returns(candles_df)
-        
+		
 		candles_df = candles_df.apply(normalize_series, axis=0)
 		split_candles = self._split_into_periods(candles_df, 30)
 
 		split_candles = split_candles[:len(price_returnz)]
-        
+		
 		if model_type == "gru":
 			dataset = DFTimeSeriesDataset(split_candles, price_returnz)
-        if model_type == "cnn":
-            chart_images = create_charts(split_candles, "images/")
-            dataset = ChartImageDataset(chart_images, price_returnz)
+		if model_type == "cnn":
+			chart_images = create_charts(split_candles, "images/")
+			dataset = ChartImageDataset(chart_images, price_returnz)
 		corr_preds, incorr_preds = self.gekko.backtest(self.strategy, dataset)
 		return "Correct on {}, Incorrect on {}".format(corr_preds, incorr_preds)

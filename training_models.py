@@ -2,7 +2,7 @@ from helpers.charting_tools import Charting
 from helpers.data_processing import add_ti
 from helpers.saving_models import load_model, save_model
 from helpers.datasets import DFTimeSeriesDataset, ChartImageDataset
-from torch.utils.data import *
+from torch.utils.data import DataLoader, Dataset
 from BookWorm import BookWorm, BinanceWrapper
 from PIL import Image
 from tqdm import tqdm_notebook as tqdm
@@ -114,7 +114,7 @@ def _test(test_gen, model, optim, error_func):
     with torch.set_grad_enabled(False):
         losses = []
 
-        for batch, labels in valid_gen:
+        for batch, labels in test_gen:
             batch, labels = batch.cuda().float(), labels.cuda().float()
             
             # set to eval mode
@@ -180,8 +180,8 @@ def train_cnn(model, candles, lr=1e-3, epochs=1):
     # create two ChartImageDatasets, split by split, for the purpose of creating a DataLoader for the specific model
     train_ds= ChartImageDataset(paths_to_images[:s], price_returns[:s])
     valid_ds = ChartImageDataset(paths_to_images[s:], price_returns[s:])
-    train_dl = DataLoader(train_dl, **params)
-    valid_dl= DataLoader(valid_dl, **params)
+    train_dl = DataLoader(train_ds, **params)
+    valid_dl= DataLoader(valid_ds, **params)
 
     train(model, 'resnet', torch.optim.Adam(model.parameters(), lr), epochs, train_dl, valid_dl)
 
@@ -208,8 +208,8 @@ def train_gru(model, candles, lr=1e-3, epochs=1):
     # create two ChartImageDatasets, split by split, for the purpose of creating a DataLoader for the specific model
     train_ds = DFTimeSeriesDataset(candles_sliced[:s], price_returns[:s])
     valid_ds = DFTimeSeriesDataset(candles_sliced[s:], price_returns[s:])
-    train_dl = DataLoader(train_dl, **params)
-    valid_dl= DataLoader(valid_dl, **params)
+    train_dl = DataLoader(train_ds, **params)
+    valid_dl= DataLoader(valid_ds, **params)
 
     train(model, 'gru', torch.optim.Adam(model.parameters(), lr), epochs, train_dl, valid_dl)
     save_model(model, 'gru_weights')

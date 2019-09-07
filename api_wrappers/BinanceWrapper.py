@@ -13,11 +13,6 @@ class BinanceWrapper(APIWrapper):
                            end_time: str):
         """
         Returns DataFrame with columns = ['time', 'open', 'close', 'high', 'low', 'volume'] for the security. Number of rows is equal to time interval divided by days
-
-        >>> id = 'nBjgb83VMNvqq45b3JdWUIsJDalWlXxHI2bvDz9oLdW7KgOLPvJCp30CHnthjfNJ'
-        >>> sec = '5bBN7s7h37kUvmGIpF9FTAtspBY93WirwhTh39PV7AlKSlUE2S4EEe9b3OZVYIqd'
-        >>> b = BinanceWrapper(id, sec)
-        >>> b.historical_daily("ETHBTC", "1 Jan, 2017", "now", "1d")
         """
 
         candles = self.client.get_historical_klines(symbol, interval,
@@ -40,10 +35,6 @@ class BinanceWrapper(APIWrapper):
 
         NOTE: only goes back to num*interval candles max
 
-        >>> id = 'nBjgb83VMNvqq45b3JdWUIsJDalWlXxHI2bvDz9oLdW7KgOLPvJCp30CHnthjfNJ'
-        >>> sec = '5bBN7s7h37kUvmGIpF9FTAtspBY93WirwhTh39PV7AlKSlUE2S4EEe9b3OZVYIqd'
-        >>> b = BinanceWrapper(id, sec)
-        >>> b.last_candle("ETHBTC", "1m")
         """
 
         candles = self.client.get_historical_klines(symbol, interval,

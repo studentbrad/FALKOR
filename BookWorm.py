@@ -39,7 +39,3 @@ class BookWorm:
 
             # save to .cscv
             df.to_csv(save_path, index=False)
-
-
-if __name__ == '__main__':
-    run_for_user()

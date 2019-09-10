@@ -30,11 +30,10 @@ class BinanceWrapper(APIWrapper):
         return data_df
 
     def last_candles(self, num, symbol, interval):
-        """Returns DataFrame with columns =['time', 'open', 'close', 'high', 'low', 'volume']
+        """
+        Returns DataFrame with columns =['time', 'open', 'close', 'high', 'low', 'volume'] 
         with only one row for the last candle created
-
         NOTE: only goes back to num*interval candles max
-
         """
 
         candles = self.client.get_historical_klines(symbol, interval,

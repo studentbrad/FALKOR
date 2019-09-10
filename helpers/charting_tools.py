@@ -221,6 +221,75 @@ class Charting:
 
         self.tech_inds = tech_inds
 
+    def chart_to_numpy(self):
+        """Returns the matplotlib plot as a numpy array"""
+        # Create axis for the price and technical indicator graph
+        ax0 = self.fig.add_subplot(411)
+        plt.axis('off')
+
+        # Plot Price
+        self.df.plot(x=self.col_label, y=self.row_label, ax=ax0, color='black', label='_nolegend_', linewidth=3)
+
+        # Plot Technical Indicators
+        if self.tech_inds:
+            for col_name in self.tech_inds:
+                ti_df = self.df[['time', col_name]].copy()
+                ti_df.plot(x='time', y=col_name, ax=ax0, label='_nolegend_')
+
+
+        # Plot Volume as Bar Chart on the bottom
+        # Turn off the axes and background lines
+        ax1 = self.fig.add_subplot(412)
+        plt.axis('off')
+
+        # Plot candlesticks
+        candlestick2_ochl(width=0.4, colorup='g', colordown='r',
+                          ax=ax1, opens=self.df['open'],
+                          closes=self.df['close'],
+                          highs=self.df['high'], lows=self.df['low'], )
+
+
+        # Create axis for the volume bar chart
+        ax2 = self.fig.add_subplot(413)
+
+
+        time_list = self.x
+        volume_list = self.df.volume.tolist()
+
+        norm_volume_list = normalize_by_dataset(volume_list, self.y, from_origin=True)
+
+        # Plot the volume graph
+        plt.axis('off')
+        vol_df = pd.DataFrame(list(zip(time_list, norm_volume_list)), columns=['time', 'volume'])
+        vol_df.plot.bar(x='time', y='volume', ax=ax2, label='_nolegend_')
+
+
+
+        # Create axis for special technical indicators, obv, macd, etc.
+        ax3 = self.fig.add_subplot(414)
+        plt.axis('off')
+        
+        if 'macd' in self.df:
+            # Normalize macd
+            macd_list = self.df['macd'].tolist()
+            norm_macd_list = normalize_by_dataset(macd_list, self.y, from_origin=True)
+
+            # Plot the macd graph
+            vol_df = pd.DataFrame(list(zip(time_list, norm_macd_list)),
+                                  columns=['time', 'macd'])
+            vol_df.plot(x='time', y='macd', ax=ax3, label='_nolegend_')
+
+        # If we haven't already shown or saved the plot, then we need to
+        # draw the figure first...
+        self.fig.canvas.draw()
+
+        # Now we can save it to a numpy array.
+        data = np.fromstring(self.fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+        data = data.reshape(self.fig.canvas.get_width_height()[::-1] + (3,))
+
+        return data
+        
+
     def chart_to_image(self, file_name):
         """Creates the specified chart and saves it to an image. """
 

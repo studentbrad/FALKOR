@@ -101,9 +101,6 @@ class BackTest:
 			price_return = (vf - vi) / vi
 			labels.append(price_return)
 		return labels
-	
-
-	   
 
 	def profit_test(self, candles_df, model_type):
 		"""

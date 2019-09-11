@@ -6,7 +6,7 @@ import torchvision
 from PIL import Image
 from torch.utils.data import *
 
-from charting_tools import Charting
+from .charting_tools import Charting
 
 class DFTimeSeriesDataset(Dataset):
     """Dataset for historical timeseries data. 
@@ -14,6 +14,8 @@ class DFTimeSeriesDataset(Dataset):
     self.labels = [np.Array, np.Array, np.Array, ..., np.Array]
     """
     def __init__(self, time_series, labels):
+        
+        
         self.time_series, self.labels = time_series, labels
         self.c = 1 # one label
     
@@ -29,16 +31,25 @@ class OCHLVDataset(Dataset):
     """Dataset for a list of dataframes with OCHLV representing a certain period of price"""
 
     def __init__(self, time_series, labels):
-        self.time_series, self.labels = time_series, labels
+        inputs = []
+        for ts in time_series:
+            chart = Charting(ts, 'time', 'close')
+            arr = chart.chart_to_numpy()
+            # remove time column
+            input_chart = np.delete(arr, 0, axis=1)
+            # close chart to save memory
+            chart.close_chart()
+            inputs.append(input_chart)
+        self.time_series, self.labels = inputs, labels
         self.c = 1 # one label
 
     def __len__(self):
         return len(self.time_series)
         
     def __getitem__(self, i):
-        time_series_df = self.time_series[i]
-        chart = Charting(time_series_df, 'time', 'close')
-        return chart.chart_to_numpy(), self.labels[i]
+        # ignore matplotlib bs
+       
+        return self.time_series[i], self.labels[i]
 
 class ImagePathDataset(Dataset):
     """ImagePath Dataset"""

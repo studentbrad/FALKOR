@@ -15,6 +15,8 @@ from matplotlib.transforms import Affine2D
 
 from six.moves import xrange, zip
 
+import warnings
+
 def _check_input(opens, closes, highs, lows, miss=-1):
     """Checks that *opens*, *highs*, *lows* and *closes* have the same length.
     NOTE: this code assumes if any value open, high, low, close is
@@ -222,6 +224,8 @@ class Charting:
         self.tech_inds = tech_inds
 
     def chart_to_numpy(self):
+        warnings.filterwarnings('ignore')
+        
         """Returns the matplotlib plot as a numpy array"""
         # Create axis for the price and technical indicator graph
         ax0 = self.fig.add_subplot(411)
@@ -278,7 +282,11 @@ class Charting:
             vol_df = pd.DataFrame(list(zip(time_list, norm_macd_list)),
                                   columns=['time', 'macd'])
             vol_df.plot(x='time', y='macd', ax=ax3, label='_nolegend_')
-
+        
+        # change resolution of image to 224x224
+        DPI = self.fig.get_dpi()
+        self.fig.set_size_inches(224.0/float(DPI),224/float(DPI))
+        
         # If we haven't already shown or saved the plot, then we need to
         # draw the figure first...
         self.fig.canvas.draw()
@@ -286,13 +294,18 @@ class Charting:
         # Now we can save it to a numpy array.
         data = np.fromstring(self.fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
         data = data.reshape(self.fig.canvas.get_width_height()[::-1] + (3,))
-
+        data = np.moveaxis(data, 2, 0) # move rbg dimension to the start for pytorch compability
+        # reshape xy to 224 x 224
+        
+        warnings.filterwarnings('default')
+        
         return data
         
 
     def chart_to_image(self, file_name):
         """Creates the specified chart and saves it to an image. """
-
+        warnings.filterwarnings('ignore')
+        
         # Create axis for the price and technical indicator graph
         ax0 = self.fig.add_subplot(411)
         plt.axis('off')
@@ -364,7 +377,12 @@ class Charting:
         
         # close all open plots to save memory
         plt.close('all')
-
+        warnings.filterwarnings('default')
+        
+    def close_chart(self):
+        """Close self.fig to save space when finished with this chart"""
+        plt.close(self.fig)
+    
     def label_chart(self, csv_path):
         """Show and Label the Chart. Call this method. """
         # Create axis for the price and technical indicator graph
@@ -527,10 +545,10 @@ def normalize_by_dataset(list1, list2, from_origin=False):
     else:
         normalized_list1 = []
         for i in range(len(list1)):
-            x_norm = ((max(list2) - 0) * (
+            x_norm = ((max(list2) - 0.00001) * (
                     (list1[i] - min(list1)) / (
                     max(list1) - min(
-                list1))) + 0)
+                list1))) + 0.00001)
             normalized_list1.append(x_norm)
 
         return normalized_list1

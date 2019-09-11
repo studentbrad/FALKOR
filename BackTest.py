@@ -6,7 +6,7 @@ from Portfolio import Portfolio
 from pandas import DataFrame
 
 from models.GRU.GRU import GRUnet
-from helpers.datasets import DFTimeSeriesDataset, ChartImageDataset
+from helpers.datasets import DFTimeSeriesDataset, OCHLVDataset
 
 import torch
 
@@ -53,9 +53,8 @@ class BackTest:
 	"""
 	
 
-	def __init__(self, api_wrapper, strategy):
+	def __init__(self, strategy):
 		"""Initialize BackTest instance"""
-		self.api_wrapper = api_wrapper
 		self.strategy = strategy
 
 		# Initialize with an empty portfolio
@@ -108,18 +107,21 @@ class BackTest:
 		By simulating a trade at every model signal, we sum profits/losses made from
 		all trade signals generated. Returns string of profit stats
 		"""
-		candles_df = candles_df.drop('time', axis=1).reset_index(drop=True)
-		price_returnz = self.price_returns(candles_df)
+		#candles_df = candles_df.drop('time', axis=1).reset_index(drop=True)
+		#price_returnz = self.price_returns(candles_df)
 		
-		candles_df = candles_df.apply(normalize_series, axis=0)
+		#candles_df = candles_df.apply(normalize_series, axis=0)
+		#split_candles = self._split_into_periods(candles_df, 30)
+		
+		#split_candles = split_candles[:len(price_returnz)]
+		candles_df = candles_df.reset_indet(drop=True)
 		split_candles = self._split_into_periods(candles_df, 30)
-
-		split_candles = split_candles[:len(price_returnz)]
+		price_returnz = self.price_returns(candles_df)
 		
 		if model_type == "gru":
 			dataset = DFTimeSeriesDataset(split_candles, price_returnz)
 		if model_type == "cnn":
-			chart_images = create_charts(split_candles, "images/")
-			dataset = ChartImageDataset(chart_images, price_returnz)
+			#chart_images = create_charts(split_candles, "images/")
+			dataset = OCHLVDataset(split_candles, price_returnz)
 		corr_preds, incorr_preds = self.gekko.backtest(self.strategy, dataset)
 		return "Correct on {}, Incorrect on {}".format(corr_preds, incorr_preds)

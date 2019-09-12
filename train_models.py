@@ -48,8 +48,7 @@ def split_candles(df, num_rows=30, step=10):
     return slices
 
 def _train(train_dl, model, optim, error_func, debug=False):
-    batch_loss = 0
-    
+    losses = []
     for batch, labels in train_dl:    
         batch, labels = batch.cuda().float(), labels.cuda().float()
         
@@ -69,9 +68,9 @@ def _train(train_dl, model, optim, error_func, debug=False):
         loss.backward()
         optim.step()
         
-        batch_loss += loss
-    print(batch_loss) 
-    return round(float(batch_loss), 6)
+        losses.append(loss)
+
+    return round(float(sum(losses))/len(losses), 6)
 
 def _valid(valid_dl, model, optim, error_func):
     with torch.set_grad_enabled(False):
@@ -179,13 +178,11 @@ def train_on_df(model, candles_df, lr, num_epochs, needs_image, debug):
     optim = torch.optim.Adam(model.parameters(), lr)
     
     print('commencing training')
-    train(model, optim, RMSE, num_epochs, train_dl, valid_dl, debug)
+    train(model=model, optim=optim, error_func=RMSE, num_epochs=num_epochs, train_dl=train_dl, valid_dl=valid_dl, debug=debug)
 
-model = GRUnet(11, 30, 64, 500, 3).cuda()
+model = GRUnet(11, 30, 64, 100, 2).cuda()
 candles = pd.read_csv('bitcoin1m.csv')
 
-candles = candles[len(candles)-500000:]
-
-train_on_df(model, candles, 1e-3, 5, needs_image=False, debug=True)
+train_on_df(model, candles, 1e-3, 6, needs_image=False, debug=False)
 
 save_model(model, 'gru_w')

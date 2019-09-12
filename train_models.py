@@ -1,5 +1,5 @@
 from helpers.charting_tools import Charting
-from helpers.data_processing import add_ti
+from helpers.data_processing import add_ti, clean_candles_df, split_candles, price_returns
 from helpers.saving_models import load_model, save_model
 from helpers.datasets import DFTimeSeriesDataset, OCHLVDataset
 from torch.utils.data import DataLoader, Dataset
@@ -11,8 +11,8 @@ import torch
 import os
 import shutil
 import pandas as pd
-torch.backends.cudnn.benchmark = True
 
+torch.backends.cudnn.benchmark = True
 
 from models.GRU.GRU import GRUnet
 from models.CNN.CNN import CNN
@@ -21,31 +21,6 @@ from models.CNN.CNN import CNN
 params = {'batch_size': 64,
           'shuffle': True,
           'num_workers': 5}
-
-def price_returns(df, num_rows=30, num_into_fut=5, step=10):
-    """Get the return percentage of a candlestick further into the future for a list of labels"""
-    df = df.reset_index(drop=True)
-    labels = []
-    
-    for row_i in range(0, df.shape[0] - num_rows - num_into_fut, step):
-        # skip all iterations while row_i < num_rows since nothing yet to create a label for
-        if row_i <= num_rows: continue
-        
-        vf, vi = df['close'][row_i+num_into_fut], df['close'][row_i]
-        price_return = (vf - vi) / vi
-        labels.append(price_return)
-    return labels
-
-def split_candles(df, num_rows=30, step=10):
-    """Split a DataFrame of candlestick data into a list of smaller DataFrames each with num_rows rows"""
-    
-    slices = []
-    
-    for row_i in range(0, df.shape[0] - num_rows, step):
-        small_df = df.iloc[row_i:row_i+num_rows, :]
-        slices.append(small_df)
-        
-    return slices
 
 def _train(train_dl, model, optim, error_func, debug=False):
     batch_loss = 0
@@ -146,9 +121,7 @@ def train_on_df(model, candles_df, lr, num_epochs, needs_image, debug):
     
     print('cleaning data')
     # simple data cleaning 
-    candles = candles_df.reset_index(drop=True)
-    candles = candles.ffill()
-    candles = candles.astype(float)
+    candles = clean_candles_df(candles_df)
     
     print('adding technical indicators')
     candles = add_ti(candles)
@@ -166,9 +139,10 @@ def train_on_df(model, candles_df, lr, num_epochs, needs_image, debug):
     s = int(len(inputs) * 0.7)
     
     print('creating Datasets and DataLoaders')
+
     if needs_image:
-        train_ds = OCHLVDataset(inputs[:s], labels[:s])
-        valid_ds = OCHLVDataset(inputs[s:], labels[s:])
+            train_ds = OCHLVDataset(inputs[:s], labels[:s])
+            valid_ds = OCHLVDataset(inputs[s:], labels[s:])
     else:
         train_ds = DFTimeSeriesDataset(inputs[:s], labels[:s])
         valid_ds = DFTimeSeriesDataset(inputs[s:], labels[s:])
@@ -181,11 +155,13 @@ def train_on_df(model, candles_df, lr, num_epochs, needs_image, debug):
     print('commencing training')
     train(model, optim, RMSE, num_epochs, train_dl, valid_dl, debug)
 
-model = GRUnet(11, 30, 64, 500, 3).cuda()
-candles = pd.read_csv('bitcoin1m.csv')
 
-candles = candles[len(candles)-500000:]
+def run_train():
+    model = GRUnet(11, 30, 64, 500, 3).cuda()
+    candles = pd.read_csv('bitcoin1m.csv')
 
-train_on_df(model, candles, 1e-3, 5, needs_image=False, debug=True)
+    candles = candles[len(candles)-500000:]
 
-save_model(model, 'gru_w')
+    train_on_df(model, candles, 1e-3, 5, needs_image=False, debug=True)
+
+    save_model(model, 'gru_w')

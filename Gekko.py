@@ -4,7 +4,7 @@ from Portfolio import Portfolio
 
 from strategies.Strategy import Strategy
 from helpers.datasets import DFTimeSeriesDataset
-
+from helpers.data_processing import clean_candles_df, add_ti, price_returns, 
 from torch.utils.data import *
 
 class Gekko:
@@ -103,50 +103,63 @@ class Gekko:
         for security in self.portfolio.securities_trading:
             trade_info = self._trade(security)
             print(trade_info)
-            
-            
-    def _test(test_gen, model, optim, error_func):
-        with torch.set_grad_enabled(False):
-            losses = []
 
-            for batch, labels in valid_gen:
-                batch, labels = batch.cuda().float(), labels.cuda().float()
+    def make_predictions(self, model, dl):
+        """Make all predictions for batches in dl with model, returning a list of tuples in the format (output, truth)"""
+        predictions = []
 
-                # set to eval mode
-                model.eval()
+        for batch, labels in dl:
+            output = model(batch)
 
-                # clear gradients
-                model.zero_grad()
+            output_list = output.squeeze().tolist()
+            label_list = labels.squeeze().tolist()
 
-                output = model(batch)
-                loss = error_func(output, labels)
+            for i in range(len(output_list)):
+                predictions.append( (output_list[i], label_list[i]) )
 
-                losses.append(loss)
+        return predictions
 
-        return round(float(sum(losses) / len(losses)), 6)
-                     
-    def backtest(self, strategy, dataset, model_name='gru'):
-        """Run strategy on test_data to see how much profit strategy would've made if it bought on every buy signal 
-        and sold on every sell signal"""
+    # TODO create a func for candles_to_input()
+
+    def model_predictions(self, model, candles):
+        """Convert candles into input data and use model to predict the output for each input,
+        returning a list of tuples in the form (output, truth)"""
         
-        dataloader = DataLoader(dataset, drop_last=True)        
+        # simple data cleaning 
+        candles = clean_candles_df(candles)
         
-        corr_preds, incorr_preds = 0, 0
+        print('adding technical indicators')
+        candles = add_ti(candles)
         
-        for batch, labels in dataloader:
-            batch, labels = batch.cuda().float(), labels.cuda().float()
-            
-            pred = strategy.generate_signals(batch)
-            pred = pred.squeeze()[29]
-            ret = labels.item()
-                     
-            if pred > 0 and ret > 0:
-                 corr_preds += 1
-            elif pred > 0 and ret < 0:
-                 incorr_preds +=1
-            elif pred < 0 and ret < 0:
-                 corr_preds += 1
-            elif pred < 0 and ret > 0:
-                 incorr_preds += 1                
+        # remove time column
+        candles = candles.drop('time', axis=1).reset_index(drop=True)
         
-        return corr_preds, incorr_preds
+        print('creating input and label lists')
+        labels = price_returns(candles)
+        inputs = split_candles(candles)
+        # remove all inputs without a label
+        inputs = inputs[len(inputs)-len(labels):]
+
+        # calculate s - index of train/valid split
+        s = int(len(inputs) * 0.7)
+        
+        print('creating Datasets and DataLoaders')
+        if needs_image:
+            ds = OCHLVDataset(inputs, labels)
+        else:
+            ds = DFTimeSeriesDataset(inputs, labels)
+
+        dl = DataLoader(ds, drop_last=True, batch_size=64)
+        predictions = make_predictions(model, dl)
+
+        return predictions
+
+
+from models.GRU.GRU import GRUnet
+model = GRUnet(11, 30, 64, 500, 3)
+candles = pd.read_csv('bitcoin1m.csv')
+
+g = Gekko()
+preds = g.model_predictions(model, candles)
+
+print(preds[0])

@@ -1,39 +1,6 @@
 from helpers.technical_indicators import sma, macd, obv, bollinger_bands, ema
 import warnings
 
-def split_dataset(dataset_df, a=0, b=30, step_size=5):
-    """Split dataset_df into a list of DataFrames. Sliding window of b-a. step_size = 5
-    returns [ [DataFrame], [DataFrame], ..., [DataFrame] ] where length is dependent on a, b, and step_size. 
-    """
-    
-    end_b = dataset_df.shape[0] 
-    
-    dataset_splits = []
-    
-    # Take a 30 period window of dataset_df, with a step size of 5
-    while b < end_b:
-
-        window = dataset_df.iloc[a:b, :]
-        dataset_splits.append(window)
-        
-        a += step_size
-        b += step_size
-    # dataset_splits = dataset_splits[:len(dataset_splits)-5] # remove last 5 element since we predict price t+5
-    return dataset_splits
-
-def price_labels(dataset_windows: list, period_size: int, periods_into_the_future=5):
-    """Returns a dict containing curr_price, future_price, and price_return for every entry inside dataset_window"""
-    dct = {'curr_price': [], 'future_price': [], 'return': []}
-    for i, df in enumerate(dataset_windows[:-1]): # skip the last one
-        curr_price = df['close'][period_size-1]
-        dct['curr_price'].append(curr_price)
-        
-        future_price = dataset_windows[i+1]['close'][periods_into_the_future-1] # 5 periods into the future
-        dct['future_price'].append(future_price) 
-        dct['return'].append(( ( future_price - curr_price ) / curr_price)) 
-        
-    return dct
-
 def add_ti(df):
     """Take an input df of ochlv data and return a df ready for creating a chart image with"""
     warnings.filterwarnings("ignore")
@@ -73,3 +40,35 @@ def add_ti(df):
         
     warnings.filterwarnings("default")
     return df
+
+def clean_candles_df(candles_df):
+    candles = candles_df.reset_index(drop=True)
+    candles = candles.ffill()
+    candles = candles.astype(float)
+    return candles
+
+
+def price_returns(df, num_rows=30, num_into_fut=5, step=10):
+    """Get the return percentage of a candlestick further into the future for a list of labels"""
+    df = df.reset_index(drop=True)
+    labels = []
+    
+    for row_i in range(0, df.shape[0] - num_rows - num_into_fut, step):
+        # skip all iterations while row_i < num_rows since nothing yet to create a label for
+        if row_i <= num_rows: continue
+        
+        vf, vi = df['close'][row_i+num_into_fut], df['close'][row_i]
+        price_return = (vf - vi) / vi
+        labels.append(price_return)
+    return labels
+
+def split_candles(df, num_rows=30, step=10):
+    """Split a DataFrame of candlestick data into a list of smaller DataFrames each with num_rows rows"""
+    
+    slices = []
+    
+    for row_i in range(0, df.shape[0] - num_rows, step):
+        small_df = df.iloc[row_i:row_i+num_rows, :]
+        slices.append(small_df)
+        
+    return slices

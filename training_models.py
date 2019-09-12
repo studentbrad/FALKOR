@@ -1,7 +1,7 @@
 from helpers.charting_tools import Charting
 from helpers.data_processing import add_ti
 from helpers.saving_models import load_model, save_model
-from helpers.datasets import DFTimeSeriesDataset, ChartImageDataset
+from helpers.datasets import DFTimeSeriesDataset, OCHLVDataset
 from torch.utils.data import DataLoader, Dataset
 from BookWorm import BookWorm, BinanceWrapper
 from PIL import Image
@@ -10,34 +10,30 @@ import warnings
 import torch
 import os
 import shutil
+import pandas as pd
 torch.backends.cudnn.benchmark = True
+
+
+from models.GRU.GRU import GRUnet, CNN
 
 # Parameters
 params = {'batch_size': 64,
           'shuffle': True,
           'num_workers': 5}
 
-def create_charts(candles_sliced, save_path):
-    """Create a chart image for each in sliced_candles and return a list of paths to those images"""
+def price_returns(df, num_rows=30, num_into_fut=5, step=10):
+    """Get the return percentage of a candlestick further into the future for a list of labels"""
+    df = df.reset_index(drop=True)
+    labels = []
     
-    # turn off stupid warnings
-    warnings.filterwarnings("ignore")
-
-    try: os.mkdir(save_path)
-    except: pass
-
-    i = 0
-    paths_to_images = []
-    for small_df in tqdm(candles_sliced):
-        chart = Charting(small_df, 'time', 'close')
+    for row_i in range(0, df.shape[0] - num_rows - num_into_fut, step):
+        # skip all iterations while row_i < num_rows since nothing yet to create a label for
+        if row_i <= num_rows: continue
         
-        path = save_path + 'chart_{}.png'.format(i)
-        chart.chart_to_image(path)
-        paths_to_images.append(path)
-        i += 1
-
-    warnings.filterwarnings("default")
-    return paths_to_images        
+        vf, vi = df['close'][row_i+num_into_fut], df['close'][row_i]
+        price_return = (vf - vi) / vi
+        labels.append(price_return)
+    return labels
 
 def split_candles(df, num_rows=30, step=10):
     """Split a DataFrame of candlestick data into a list of smaller DataFrames each with num_rows rows"""
@@ -50,29 +46,10 @@ def split_candles(df, num_rows=30, step=10):
         
     return slices
 
-def get_price_returns(df, num_rows=30, num_into_fut=5, step=10):
-    labels = []
-    
-    for row_i in range(0, df.shape[0] - num_rows - num_into_fut, step):
-        # skip all iterations while row_i < num_rows since nothing yet to create a label for
-        if row_i <= num_rows: continue
-        
-        vf, vi = df['close'][row_i+num_into_fut], df['close'][row_i]
-        price_return = (vf - vi) / vi
-        labels.append(price_return)
-    return labels
-
-def normalize_series(ser):
-    return (ser-ser.min())/(ser.max()-ser.min())
-
-def normalize_df(df):
-    df = df.drop('time', axis=1).reset_index(drop=True)
-    return df.apply(normalize_series, axis=0)
-
-def _train(train_gen, model, optim, error_func):
+def _train(train_dl, model, optim, error_func):
     losses = []
     
-    for batch, labels in train_gen:    
+    for batch, labels in train_dl:    
         batch, labels = batch.cuda().float(), labels.cuda().float()
         # set model to train mode
         model.train()
@@ -90,11 +67,11 @@ def _train(train_gen, model, optim, error_func):
         
     return round(float(sum(losses) / len(losses)), 6)
 
-def _valid(valid_gen, model, optim, error_func):
+def _valid(valid_dl, model, optim, error_func):
     with torch.set_grad_enabled(False):
         losses = []
 
-        for batch, labels in valid_gen:
+        for batch, labels in valid_dl:
             batch, labels = batch.cuda().float(), labels.cuda().float()
             
             # set to eval mode
@@ -110,11 +87,11 @@ def _valid(valid_gen, model, optim, error_func):
         
     return round(float(sum(losses) / len(losses)), 6)
 
-def _test(test_gen, model, optim, error_func):
+def _test(test_dl, model, optim, error_func):
     with torch.set_grad_enabled(False):
         losses = []
 
-        for batch, labels in test_gen:
+        for batch, labels in test_dl:
             batch, labels = batch.cuda().float(), labels.cuda().float()
             
             # set to eval mode
@@ -130,86 +107,69 @@ def _test(test_gen, model, optim, error_func):
         
     return round(float(sum(losses) / len(losses)), 6)
 
-def train(model, model_name, optim, num_epochs, train_gen, valid_gen, test_gen=None):
-    """Train a PyTorch model with optim as optimizer strategy"""
-    
-    for epoch_i in range(num_epochs):
-        
-        
-        def RMSE(x, y):
+def RMSE(x, y):
             
+            #TODO automate this without model_name
             # have to squish x into a rank 1 tensor with batch_size length with the outputs we want
-            if model_name == 'resnet':
+            if len(list(x.size())) == 2:
                  # torch.Size([64, 1])
                 x = x.squeeze(1)
-            elif model_name == 'gru':
+            elif len(list(x.size())) == 3:
                 # torch.Size([64, 30, 1])
                 x = x[:, 29, :] # take only the last prediction from the 30 time periods in our matrix
                 x = x.squeeze(1)
     
             mse = torch.nn.MSELoss()
             return torch.sqrt(mse(x, y))
-        
-        
+
+def train(model, optim, error_func, num_epochs, train_dl, valid_dl, output_name, test_dl=None):
+    """Train a PyTorch model with optim as optimizer strategy"""
+    
+    for epoch_i in range(num_epochs):     
         # forward and backward passes of all batches inside train_gen
-        train_loss = _train(train_gen, model, optim, RMSE)
-        valid_loss = _valid(valid_gen, model, optim, RMSE)
+        train_loss = _train(train_dl, model, optim, error_func)
+        valid_loss = _valid(valid_dl, model, optim, error_func)
         
         # run on test set if provided
-        if test_gen: test_output = _test(test_gen, model, optim)
+        if test_dl: test_output = _test(test_dl, model, optim, error_func)
         else: test_output = "no test selected"
         print("train loss: {}, valid loss: {}, test output: {}".format(train_loss, valid_loss, test_output))
 
+def train_on_df(model, candles_df, lr, num_epochs, output_name, needs_image):
+    torch.backends.cudnn.benchmark = True
 
-def train_cnn(model, candles, lr=1e-3, epochs=1):
+    # simple data cleaning 
+    candles = candles_df.reset_index(drop=True)
+    candles = candles.ffill()
+    candles = candles.astype(float)
+
     candles = add_ti(candles)
-    price_returns = get_price_returns(candles)
-    # split candles into 30 period and a label
-    candles_sliced = split_candles(candles)
-    # we need to remove candle slices without a label from candles_sliced
-    candles_sliced = candles_sliced[len(candles_sliced)-len(price_returns):]
 
-    paths_to_images = create_charts(candles_sliced, "images/")
-    
-    # get index of split between validation and test set
-    split = 0.7
-    s = int(len(candles_sliced) * 0.7)
-    while s % params['batch_size'] != 0:
-        s += 1
+    labels = price_returns(candles)
+    inputs = split_candles(candles)
+    # remove all inputs without a label
+    inputs = inputs[len(inputs)-len(labels):]
 
-    # create two ChartImageDatasets, split by split, for the purpose of creating a DataLoader for the specific model
-    train_ds= ChartImageDataset(paths_to_images[:s], price_returns[:s])
-    valid_ds = ChartImageDataset(paths_to_images[s:], price_returns[s:])
+    # calculate s - index of train/valid split
+    s = int(len(inputs) * 0.7)
+
+    if needs_image:
+        train_ds = OCHLVDataset(inputs[:s], labels[:s])
+        valid_ds = OCHLVDataset(inputs[s:], labels[s:])
+    else:
+        train_ds = DFTimeSeriesDataset(inputs[:s], labels[:s])
+        valid_ds = DFTimeSeriesDataset(inputs[s:], labels[s:])
+
     train_dl = DataLoader(train_ds, **params)
-    valid_dl= DataLoader(valid_ds, **params)
+    valid_dl = DataLoader(valid_ds, **params)
 
-    train(model, 'resnet', torch.optim.Adam(model.parameters(), lr), epochs, train_dl, valid_dl)
+    optim = torch.optim.Adam(model.parameters(), lr)
 
-    save_model(model, 'cnn_weights')
+    train(model, optim, RMSE, num_epochs, train_dl, valid_dl, output_name)
 
-    # delete images/ folder
-    shutil.rmtree('images/')
+gru = GRUnet(11, 30, 64, 500, 3).cuda()
+candles = pd.read_csv('bitcoin1m.csv')
 
-def train_gru(model, candles, lr=1e-3, epochs=1):
-    candles = add_ti(candles)
-    price_returns = get_price_returns(candles)
-    candles = normalize_df(candles)
-    # split candles into 30 period and a label
-    candles_sliced = split_candles(candles)
-    # we need to remove candle slices without a label from candles_sliced
-    candles_sliced = candles_sliced[len(candles_sliced)-len(price_returns):]
+candles = candles[len(candles)-50000:]
 
-    # get index of split between validation and test set
-    split = 0.7
-    s = int(len(candles_sliced) * 0.7)
-    while s % params['batch_size'] != 0:
-        s += 1
-
-    # create two ChartImageDatasets, split by split, for the purpose of creating a DataLoader for the specific model
-    train_ds = DFTimeSeriesDataset(candles_sliced[:s], price_returns[:s])
-    valid_ds = DFTimeSeriesDataset(candles_sliced[s:], price_returns[s:])
-    train_dl = DataLoader(train_ds, **params)
-    valid_dl= DataLoader(valid_ds, **params)
-
-    train(model, 'gru', torch.optim.Adam(model.parameters(), lr), epochs, train_dl, valid_dl)
-    save_model(model, 'gru_weights')
+train_on_df(gru, candles, 1e-3, 5, 'gru_w', needs_image=False)

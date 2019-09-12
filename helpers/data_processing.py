@@ -1,4 +1,5 @@
 from helpers.technical_indicators import sma, macd, obv, bollinger_bands, ema
+import warnings
 
 def split_dataset(dataset_df, a=0, b=30, step_size=5):
 	"""Split dataset_df into a list of DataFrames. Sliding window of b-a. step_size = 5
@@ -35,7 +36,7 @@ def price_labels(dataset_windows: list, period_size: int, periods_into_the_futur
 
 def add_ti(df):
 	"""Take an input df of ochlv data and return a df ready for creating a chart image with"""
-
+        warnings.filterwarnings("ignore")
 	# Create Technical Indicators for df
 
 	# price and volume as lists of floats
@@ -69,5 +70,6 @@ def add_ti(df):
 
 		# add to df
 		df[label] = ti_dict[label]
-
+        
+        warnings.filterwarnings("default")
 	return df

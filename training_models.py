@@ -14,7 +14,8 @@ import pandas as pd
 torch.backends.cudnn.benchmark = True
 
 
-from models.GRU.GRU import GRUnet, CNN
+from models.GRU.GRU import GRUnet
+from models.CNN.CNN import CNN
 
 # Parameters
 params = {'batch_size': 64,
@@ -122,7 +123,7 @@ def RMSE(x, y):
             mse = torch.nn.MSELoss()
             return torch.sqrt(mse(x, y))
 
-def train(model, optim, error_func, num_epochs, train_dl, valid_dl, output_name, test_dl=None):
+def train(model, optim, error_func, num_epochs, train_dl, valid_dl, test_dl=None):
     """Train a PyTorch model with optim as optimizer strategy"""
     
     for epoch_i in range(num_epochs):     
@@ -135,7 +136,7 @@ def train(model, optim, error_func, num_epochs, train_dl, valid_dl, output_name,
         else: test_output = "no test selected"
         print("train loss: {}, valid loss: {}, test output: {}".format(train_loss, valid_loss, test_output))
 
-def train_on_df(model, candles_df, lr, num_epochs, output_name, needs_image):
+def train_on_df(model, candles_df, lr, num_epochs, needs_image):
     torch.backends.cudnn.benchmark = True
 
     # simple data cleaning 
@@ -144,6 +145,9 @@ def train_on_df(model, candles_df, lr, num_epochs, output_name, needs_image):
     candles = candles.astype(float)
 
     candles = add_ti(candles)
+    
+    # remove time column
+    candles = candles.drop('time', axis=1).reset_index(drop=True)
 
     labels = price_returns(candles)
     inputs = split_candles(candles)
@@ -160,16 +164,18 @@ def train_on_df(model, candles_df, lr, num_epochs, output_name, needs_image):
         train_ds = DFTimeSeriesDataset(inputs[:s], labels[:s])
         valid_ds = DFTimeSeriesDataset(inputs[s:], labels[s:])
 
-    train_dl = DataLoader(train_ds, **params)
-    valid_dl = DataLoader(valid_ds, **params)
+    train_dl = DataLoader(train_ds, drop_last=True, **params)
+    valid_dl = DataLoader(valid_ds, drop_last=True, **params)
 
     optim = torch.optim.Adam(model.parameters(), lr)
 
-    train(model, optim, RMSE, num_epochs, train_dl, valid_dl, output_name)
+    train(model, optim, RMSE, num_epochs, train_dl, valid_dl)
 
-gru = GRUnet(11, 30, 64, 500, 3).cuda()
+model = GRUnet(11, 30, 64, 500, 3).cuda()
 candles = pd.read_csv('bitcoin1m.csv')
 
-candles = candles[len(candles)-50000:]
+#candles = candles[len(candles)-50000:]
 
-train_on_df(gru, candles, 1e-3, 5, 'gru_w', needs_image=False)
+train_on_df(model, candles, 1e-3, 5, needs_image=False)
+
+save_model(model, 'gru_w')

@@ -8,14 +8,21 @@ from torch.utils.data import *
 
 from .charting_tools import Charting
 
+
+def minmaxnorm(ser):
+    return (ser-ser.min())/(ser.max()-ser.min())
+
+def normalize_df(df, norm_func):
+    df = df.apply(norm_func, axis=0)
+    df = df.ffill()
+    return df
+
 class DFTimeSeriesDataset(Dataset):
     """Dataset for historical timeseries data. 
     self.feature_dfs = [np.Array, np.Array, np.Array, ..., np.Array]
     self.labels = [np.Array, np.Array, np.Array, ..., np.Array]
     """
     def __init__(self, time_series, labels):
-        
-        
         self.time_series, self.labels = time_series, labels
         self.c = 1 # one label
     
@@ -23,7 +30,11 @@ class DFTimeSeriesDataset(Dataset):
         return len(self.time_series)
     
     def __getitem__(self, i):
-        time_series_arr =  np.array(self.time_series[i])
+        df = self.time_series[i]
+                
+        df = normalize_df(df, minmaxnorm)
+    
+        time_series_arr =  np.array(df)
         label = np.array(self.labels[i])
         return time_series_arr, label
 

@@ -42,7 +42,7 @@ class GRUnet(nn.Module):
 		x, self.hidden = self.rnn(x, self.hidden)
 		
 		# detatch the hidden layer to prevent further backpropagating. i.e. fix the vanishing gradient problem
-		self.hidden = self.hidden.detach().cuda()
+		self.hidden = self.hidden.detach()
 				
 		# apply a Dropout layer 
 		#x = self.dropout(x)
@@ -70,7 +70,7 @@ class GRUnet(nn.Module):
 		
 		# Creates initial hidden state for GRU of zeroes
 		if self.eval_mode:
-			hidden = torch.ones(self.num_layers, self.batch_size, hidden_size)
+			hidden = torch.ones(self.num_layers, self.batch_size, hidden_size).cpu()
 		else:
 			hidden = torch.ones(self.num_layers, self.batch_size, hidden_size).cuda()
             

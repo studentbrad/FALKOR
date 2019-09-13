@@ -4,8 +4,9 @@ from Portfolio import Portfolio
 
 from strategies.Strategy import Strategy
 from helpers.datasets import DFTimeSeriesDataset
-from helpers.data_processing import clean_candles_df, add_ti, price_returns, 
+from helpers.data_processing import clean_candles_df, add_ti, price_returns, split_candles 
 from torch.utils.data import *
+import pandas as pd
 
 class Gekko:
     """
@@ -109,10 +110,24 @@ class Gekko:
         predictions = []
 
         for batch, labels in dl:
+            batch = batch.float()
             output = model(batch)
-
-            output_list = output.squeeze().tolist()
+                        
+            x = output
+            #TODO automate this without model_name
+            # have to squish x into a rank 1 tensor with batch_size length with the outputs we want
+            if len(list(x.size())) == 2:
+                # torch.Size([64, 1])
+                x = x.squeeze(1)
+            
+            elif len(list(x.size())) == 3:
+                # torch.Size([64, 30, 1])
+                x = x[:, 29, :]
+                x = x.squeeze(1)
+            
+            output_list = x.squeeze().tolist()
             label_list = labels.squeeze().tolist()
+            
 
             for i in range(len(output_list)):
                 predictions.append( (output_list[i], label_list[i]) )
@@ -144,22 +159,41 @@ class Gekko:
         s = int(len(inputs) * 0.7)
         
         print('creating Datasets and DataLoaders')
+
+        # TODO create somekind of object to store needs_image variable and metadata
+        # required for training the model to extend to more types of strategies
+        needs_image = False
         if needs_image:
             ds = OCHLVDataset(inputs, labels)
         else:
             ds = DFTimeSeriesDataset(inputs, labels)
 
         dl = DataLoader(ds, drop_last=True, batch_size=64)
-        predictions = make_predictions(model, dl)
+        predictions = self.make_predictions(model, dl)
 
         return predictions
 
+def prediction_stats(preds):
+    avg_incorrect_by = sum([abs(x-y) if x*y<0 else 0 for x, y in preds])/len(preds)
+    avg_correct_by = sum([abs(x-y) if x*y>0 else 0 for x, y in preds])/len(preds)
+    
+    true_pos = sum([1 if x>0 and y>0 else 0 for x, y in preds])
+    true_neg = sum([1 if x<0 and y<0 else 0 for x, y in preds])
+    false_pos = sum([1 if x>0 and y<0 else 0 for x, y in preds])
+    false_neg = sum([1 if x<0 and y>0 else 0 for x, y in preds])
+
+    accuracy = (true_pos + false_neg) / len(preds)
+    
+    precision = true_pos / (true_pos+false_pos)
+    recall = true_pos / (true_pos+false_neg)
+    f1 = 2*((precision*recall)/(precision+recall))
+    print("accuracy: {} f1: {} avg_corr: {} avg_incorr: {}".format(accuracy, f1, avg_correct_by, avg_incorrect_by))
 
 from models.GRU.GRU import GRUnet
-model = GRUnet(11, 30, 64, 500, 3)
+model = GRUnet(11, 30, 64, 500, 3, eval_mode=True).float()
 candles = pd.read_csv('bitcoin1m.csv')
 
-g = Gekko()
+g = Gekko(Portfolio())
 preds = g.model_predictions(model, candles)
 
-print(preds[0])
+prediction_stats(preds)

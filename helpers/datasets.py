@@ -14,7 +14,7 @@ def minmaxnorm(ser):
 
 def normalize_df(df, norm_func):
     df = df.apply(norm_func, axis=0)
-    df = df.ffill()
+    df = df.fillna(method='ffill')
     return df
 
 class DFTimeSeriesDataset(Dataset):
@@ -34,8 +34,12 @@ class DFTimeSeriesDataset(Dataset):
                 
         df = normalize_df(df, minmaxnorm)
     
-        time_series_arr =  np.array(df)
+        time_series_arr = np.array(df)
         label = np.array(self.labels[i])
+       
+        # deal with all nans. TODO good code shouldn't have this so handle it elsewhere
+        time_series_arr = np.nan_to_num(time_series_arr)
+        assert not np.any(np.isnan(time_series_arr))
         return time_series_arr, label
 
 class OCHLVDataset(Dataset):

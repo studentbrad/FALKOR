@@ -50,6 +50,8 @@ class OCHLVDataset(Dataset):
         for ts in time_series:
             chart = Charting(ts, 'time', 'close')
             arr = chart.chart_to_numpy()
+            image = chart.chart_to_image('image_{}.png'.format(ts))
+            
             # remove time column
             input_chart = np.delete(arr, 0, axis=1)
             # close chart to save memory

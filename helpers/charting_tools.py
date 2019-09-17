@@ -545,10 +545,7 @@ def normalize_by_dataset(list1, list2, from_origin=False):
     else:
         normalized_list1 = []
         for i in range(len(list1)):
-            x_norm = ((max(list2) - 0.00001) * (
-                    (list1[i] - min(list1)) / (
-                    max(list1) - min(
-                list1))) + 0.00001)
+            x_norm = ((max(list2)) * ((list1[i] - min(list1)) / (max(list1) - min(list1) + 0.0000001)))
             normalized_list1.append(x_norm)
 
         return normalized_list1

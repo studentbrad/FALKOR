@@ -3,9 +3,10 @@ from BookWorm import BookWorm
 from Portfolio import Portfolio
 
 from strategies.Strategy import Strategy
-from helpers.datasets import DFTimeSeriesDataset
+from helpers.datasets import DFTimeSeriesDataset, OCHLVDataset
 from helpers.data_processing import clean_candles_df, add_ti, price_returns, split_candles 
 from torch.utils.data import *
+from helpers.saving_models import save_model, load_model
 import pandas as pd
 
 class Gekko:
@@ -136,7 +137,7 @@ class Gekko:
 
     # TODO create a func for candles_to_input()
 
-    def model_predictions(self, model, candles):
+    def model_predictions(self, model, candles, needs_image):
         """Convert candles into input data and use model to predict the output for each input,
         returning a list of tuples in the form (output, truth)"""
         
@@ -145,10 +146,7 @@ class Gekko:
         
         print('adding technical indicators')
         candles = add_ti(candles)
-        
-        # remove time column
-        candles = candles.drop('time', axis=1).reset_index(drop=True)
-        
+     
         print('creating input and label lists')
         labels = price_returns(candles)
         inputs = split_candles(candles)
@@ -162,7 +160,6 @@ class Gekko:
 
         # TODO create somekind of object to store needs_image variable and metadata
         # required for training the model to extend to more types of strategies
-        needs_image = False
         if needs_image:
             ds = OCHLVDataset(inputs, labels)
         else:
@@ -173,7 +170,7 @@ class Gekko:
 
         return predictions
 
-def prediction_stats(preds):
+def stats(preds):
     avg_incorrect_by = sum([abs(x-y) if x*y<0 else 0 for x, y in preds])/len(preds)
     avg_correct_by = sum([abs(x-y) if x*y>0 else 0 for x, y in preds])/len(preds)
     
@@ -187,13 +184,27 @@ def prediction_stats(preds):
     precision = true_pos / (true_pos+false_pos)
     recall = true_pos / (true_pos+false_neg)
     f1 = 2*((precision*recall)/(precision+recall))
-    print("accuracy: {} f1: {} avg_corr: {} avg_incorr: {}".format(accuracy, f1, avg_correct_by, avg_incorrect_by))
+    return ("accuracy: {} f1: {} avg_corr: {} avg_incorr: {}".format(accuracy, f1, avg_correct_by, avg_incorrect_by))
 
 from models.GRU.GRU import GRUnet
-model = GRUnet(11, 30, 64, 500, 3, eval_mode=True).float()
-candles = pd.read_csv('bitcoin1m.csv')
+from models.CNN.CNN import CNN
 
-g = Gekko(Portfolio())
-preds = g.model_predictions(model, candles)
+if __name__ == '__main__':
+    models = ['GRU', 'CNN', 'GRUCNN']
+    model_type = input("Choose model out of {}: ".format(models))
+    test_data = input("Please enter the path to test data .csv candles: ")
+    weights_path = input("Please enter the path to saved weights: ")
 
-prediction_stats(preds)
+    if model_type == 'GRU':
+        model = GRUnet(11, 30, 64, 500, 3, eval_mode=True).float()
+    elif model_type == 'CNN':
+        model = CNN().float()
+
+    load_model(model, weights_path)
+    candles = pd.read_csv(test_data)
+
+    g = Gekko(Portfolio())
+    
+    needs_image = True if model_type=='CNN' else False
+    preds = g.model_predictions(model, candles, needs_image=needs_image)
+    print(stats(preds))

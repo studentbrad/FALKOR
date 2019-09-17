@@ -11,6 +11,7 @@ import torch
 import os
 import shutil
 import pandas as pd
+import numpy as np
 
 torch.backends.cudnn.benchmark = True
 
@@ -125,9 +126,6 @@ def train_on_df(model, candles_df, lr, num_epochs, needs_image, debug):
     print('adding technical indicators')
     candles = add_ti(candles)
     
-    # remove time column
-    candles = candles.drop('time', axis=1).reset_index(drop=True)
-    
     print('creating input and label lists')
     labels = price_returns(candles)
     inputs = split_candles(candles)
@@ -154,11 +152,55 @@ def train_on_df(model, candles_df, lr, num_epochs, needs_image, debug):
     print('commencing training')
     train(model=model, optim=optim, error_func=RMSE, num_epochs=num_epochs, train_dl=train_dl, valid_dl=valid_dl, debug=debug)
 
-def run_train():
+def train_gru(candles, file_name, lr, num_epochs, debug):
     model = GRUnet(11, 30, 64, 500, 3).cuda()
-    candles = pd.read_csv('bitcoin1m.csv')
+    load_model(model, file_name)
+    train_on_df(model, candles, lr, num_epochs, needs_image=False, debug=debug)
+    save_model(model, file_name)
 
-    candles = candles[len(candles)-500000:]
+def train_cnn(candles, file_name, lr, num_epochs, debug):
+    model = CNN().cuda()
+    load_model(model, file_name)
+    train_on_df(model, candles, lr, num_epochs, needs_image=True, debug=debug)
+    save_model(model, file_name)
 
-    train_on_df(model, candles, 1e-3, 5, needs_image=False, debug=True)
-    save_model(model, 'gru_w')
+def train_from_cli(modeltype, datapath, outputpath, lr, epochs, debug):
+    candles_df = pd.read_csv(datapath)
+    print("Training {} with {} lr and {} epochs. Saving weights to {}".format(modeltype, lr, epochs, outputpath) )
+    if modeltype=='GRU':
+        train_gru(candles_df, outputpath, lr, epochs, debug)
+    elif modeltype=='CNN':
+        train_cnn(candles_df, outputpath, lr, epochs, debug)
+
+def index_marks(nrows, chunk_size):
+    return range(1 * chunk_size, (nrows // chunk_size + 1) * chunk_size, chunk_size)
+
+def split(dfm, chunk_size):
+    indices = index_marks(dfm.shape[0], chunk_size)
+
+    return np.split(dfm, indices)
+
+if __name__ == '__main__':
+    models = ['GRU', 'CNN', 'GRUCNN']
+    model = input("Select model to train from {}: ".format(models))
+    datapath = input("Please input path to OCHLV .csv file: ")
+    num_chunks = int(input("Chunk size for training. Max is num_rows(dataframe): "))
+    outputpath = input("Please input path to save and/or load models into/from: ")
+    lr = float(input("Learning rate: "))
+    epochs = int(input("Epochs: "))
+    debug = False
+    
+    candles_big = pd.read_csv(datapath)
+
+
+    chunks = split(candles_big, num_chunks)
+    start_chunk = int(input("Select chunk to start training from (out of {}): ".format(len(chunks))))
+    
+    for i, candles_chunk in enumerate(chunks):
+        if i < start_chunk: 
+            continue
+        print("{}/{}".format(i, len(chunks)))
+        if model == 'GRU':
+            train_gru(candles_chunk, outputpath, lr, epochs, debug)
+        elif model == 'CNN':
+            train_cnn(candles_chunk, outputpath, lr, epochs, debug)

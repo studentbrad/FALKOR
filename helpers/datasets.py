@@ -13,6 +13,9 @@ def minmaxnorm(ser):
     return (ser-ser.min())/(ser.max()-ser.min())
 
 def normalize_df(df, norm_func):
+    # drop time column
+    df = df.drop('time', axis=1)
+
     df = df.apply(norm_func, axis=0)
     df = df.fillna(method='ffill')
     return df
@@ -31,7 +34,6 @@ class DFTimeSeriesDataset(Dataset):
     
     def __getitem__(self, i):
         df = self.time_series[i]
-                
         df = normalize_df(df, minmaxnorm)
     
         time_series_arr = np.array(df)
@@ -50,6 +52,7 @@ class OCHLVDataset(Dataset):
         for ts in time_series:
             chart = Charting(ts, 'time', 'close')
             arr = chart.chart_to_numpy()
+            #image = chart.chart_to_image('chart.png')
             # remove time column
             input_chart = np.delete(arr, 0, axis=1)
             # close chart to save memory

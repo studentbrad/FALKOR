@@ -5,7 +5,7 @@ import torchvision.models as models
 
 
 class GRU_CNN(nn.Module):
-	def __init__(self, num_features, batch_size, hidden_size):
+	def __init__(self, num_features, num_rows, batch_size, hidden_size, num_layers):
 		"""Initialize the model by setting up the layers"""
 		super(GRU_CNN, self).__init__()
 		
@@ -13,16 +13,17 @@ class GRU_CNN(nn.Module):
 		
 		# gru model params
 		self.num_features = num_features
+		self.num_rows = num_rows
 		self.batch_size = batch_size
 		self.hidden_size = hidden_size
-		self.n_layers = 1
+		self.n_layers = num_layers
 		
 		# resnet model
-		self.cnn = models.resnet34(pretrained=True, progress=False)
+		self.cnn = models.resnet18(pretrained=True, progress=False)
 			  
 		# RNN-GRU model
-		self.rnn = nn.GRU(input_size=self.num_features,
-						  hidden_size=self.hidden_size)
+		self.rnn = nn.GRU(batch_first=True, input_size=self.num_features,
+						  hidden_size=self.hidden_size, num_layers=self.num_layers)
 		
 		# init GRU hidden layer
 		self.hidden = self.init_hidden(batch_size=self.batch_size, hidden_size=hidden_size)
@@ -52,9 +53,12 @@ class GRU_CNN(nn.Module):
 			if name in gru_cnn_params:
 				gru_cnn_params[name].data.copy_(gru_param.data)
 	
-	def forward(self, gru_input, cnn_input):
+	def forward(self, m_input):
 		"""Perform a forward pass of our model on some input and hidden state"""
-  
+
+		# input is in a tuple (gru_input, cnn_input)
+		gru_input, cnn_input = m_input
+
 		# gru
 		gru_out, self.hidden = self.rnn(gru_input, self.hidden)
 		
@@ -91,5 +95,6 @@ class GRU_CNN(nn.Module):
 		"""Initializes hidden state"""
 		
 		# Creates initial hidden state for GRU of zeroes
-		hidden = torch.ones(1, self.batch_size, hidden_size).cuda()
+		hidden = torch.ones(self.num_layers, self.batch_size, hidden_size).cuda()
+            
 		return hidden

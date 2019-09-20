@@ -34,15 +34,35 @@ class DFTimeSeriesDataset(Dataset):
     
     def __getitem__(self, i):
         df = self.time_series[i]
-        df = normalize_df(df, minmaxnorm)
+        time_series_arr = df_to_array_transform(df)
+        return time_series_arr, self.labels[i]
+
+class GRUCNNDataset(Dataset):
+
+    def __init__(self, time_series, labels):
+        self.time_series, self.labels = time_series, labels
+        self.c = 1 # one label
     
-        time_series_arr = np.array(df)
-        label = np.array(self.labels[i])
-       
-        # deal with all nans. TODO good code shouldn't have this so handle it elsewhere
-        time_series_arr = np.nan_to_num(time_series_arr)
-        assert not np.any(np.isnan(time_series_arr))
-        return time_series_arr, label
+    def __len__(self):
+        return len(self.time_series)
+    
+    def __getitem__(self, i):
+        df = self.time_series[i]
+        time_series_arr = df_to_array_transform(df)
+        chart_img = df_to_chartarray_transform(df)
+        return (time_series_arr, chart_img)G, self.labels[i]
+
+def df_to_array_transform(df):
+    """Transformation steps used by DFTimeSeriesDataset to convert
+    from df to np array"""
+    df = normalize_df(df, minmaxnorm)
+
+    time_series_arr = np.array(df)
+    
+    # deal with all nans. TODO good code shouldn't have this so handle it elsewhere
+    time_series_arr = np.nan_to_num(time_series_arr)
+    assert not np.any(np.isnan(time_series_arr))
+    return time_series_arr
 
 class OCHLVDataset(Dataset):
     """Dataset for a list of dataframes with OCHLV representing a certain period of price"""
@@ -50,13 +70,7 @@ class OCHLVDataset(Dataset):
     def __init__(self, time_series, labels):
         inputs = []
         for ts in time_series:
-            chart = Charting(ts, 'time', 'close')
-            arr = chart.chart_to_numpy()
-            #image = chart.chart_to_image('chart.png')
-            # remove time column
-            input_chart = np.delete(arr, 0, axis=1)
-            # close chart to save memory
-            chart.close_chart()
+            input_chart = df_to_chartarray_transform(input_chart)
             inputs.append(input_chart)
         self.time_series, self.labels = inputs, labels
         self.c = 1 # one label
@@ -68,6 +82,17 @@ class OCHLVDataset(Dataset):
         # ignore matplotlib bs
        
         return self.time_series[i], self.labels[i]
+    
+def df_to_chartarray_transform(df):
+    chart = Charting(df, 'time', 'close')
+    arr = chart.chart_to_numpy()
+    #image = chart.chart_to_image('chart.png')
+    # remove time column
+    input_chart = np.delete(arr, 0, axis=1)
+    # close chart to save memory
+    chart.close_chart()
+    
+    return input_chart
 
 class ImagePathDataset(Dataset):
     """ImagePath Dataset"""

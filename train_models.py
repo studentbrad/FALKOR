@@ -1,7 +1,7 @@
 from helpers.charting_tools import Charting
 from helpers.data_processing import add_ti, clean_candles_df, split_candles, price_returns
 from helpers.saving_models import load_model, save_model
-from helpers.datasets import DFTimeSeriesDataset, OCHLVDataset
+from helpers.datasets import DFTimeSeriesDataset, OCHLVDataset, GRUCNNDataset
 from torch.utils.data import DataLoader, Dataset
 from BookWorm import BookWorm, BinanceWrapper
 from PIL import Image
@@ -17,6 +17,7 @@ torch.backends.cudnn.benchmark = True
 
 from models.GRU.GRU import GRUnet
 from models.CNN.CNN import CNN
+from models.GRU_CNN import GRU_CNN
 
 # Parameters
 params = {'batch_size': 64,
@@ -116,7 +117,7 @@ def train(model, optim, error_func, num_epochs, train_dl, valid_dl, test_dl=None
         else: test_output = "no test selected"
         print("train loss: {}, valid loss: {}, test output: {}".format(train_loss, valid_loss, test_output))
 
-def train_on_df(model, candles_df, lr, num_epochs, needs_image, debug):
+def train_on_df(model, candles_df, lr, num_epochs, model_type, debug):
     torch.backends.cudnn.benchmark = True
     
     print('cleaning data')
@@ -137,12 +138,15 @@ def train_on_df(model, candles_df, lr, num_epochs, needs_image, debug):
     
     print('creating Datasets and DataLoaders')
 
-    if needs_image:
-            train_ds = OCHLVDataset(inputs[:s], labels[:s])
-            valid_ds = OCHLVDataset(inputs[s:], labels[s:])
-    else:
+    if model_type == 'CNN':
+        train_ds = OCHLVDataset(inputs[:s], labels[:s])
+        valid_ds = OCHLVDataset(inputs[s:], labels[s:])
+    elif model_type =='GRU':
         train_ds = DFTimeSeriesDataset(inputs[:s], labels[:s])
         valid_ds = DFTimeSeriesDataset(inputs[s:], labels[s:])
+    elif model_type == 'GRU_CNN':
+        train_ds = GRUCNNDataset(inputs[:s], labels[:s])
+        valid_ds = GRUCNNDataset(inputs[s:], labels[s:])
 
     train_dl = DataLoader(train_ds, drop_last=True, **params)
     valid_dl = DataLoader(valid_ds, drop_last=True, **params)
@@ -155,14 +159,30 @@ def train_on_df(model, candles_df, lr, num_epochs, needs_image, debug):
 def train_gru(candles, file_name, lr, num_epochs, debug):
     model = GRUnet(11, 30, 64, 500, 3).cuda()
     load_model(model, file_name)
-    train_on_df(model, candles, lr, num_epochs, needs_image=False, debug=debug)
+    train_on_df(model, candles, lr, num_epochs, 'GRU', debug=debug)
     save_model(model, file_name)
 
 def train_cnn(candles, file_name, lr, num_epochs, debug):
     model = CNN().cuda()
     load_model(model, file_name)
-    train_on_df(model, candles, lr, num_epochs, needs_image=True, debug=debug)
+    train_on_df(model, candles, lr, num_epochs, 'CNN', debug=debug)
     save_model(model, file_name)
+
+
+def train_grucnn(candles, gru_w, cnn_w, lr, num_epochs, debug):
+    # Load weights from gru_w and cnn_w into grucnn
+    gru = GRU(11, 30, 64, 500, 3).cuda()
+    cnn = CNN().cuda()
+
+    load_model(gru, gru_w)
+    load_model(cnn, cnn_w)
+    
+    model = GRU_CNN(11, 30, 64, 500, 3).cuda()
+    model.load_cnn_weights(cnn)
+    model.load_gru_weights(gru)
+
+    train_on_df(model, candles, lr, num_epochs,)
+    
 
 def train_from_cli(modeltype, datapath, outputpath, lr, epochs, debug):
     candles_df = pd.read_csv(datapath)

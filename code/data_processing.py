@@ -51,9 +51,7 @@ def price_return(current_df, future_df, return_period):
     """Calculates the price return from the last entry in current_df['close'] and future_df['close'][return_period]"""
     curr_price = current_df['close'].iloc[-1]
     fut_price = future_df['close'].iloc[return_period - 1]
-
-    print(curr_price, fut_price)
-
+    
     return (fut_price - curr_price) / curr_price
 
 def candles_to_inputs_and_labels(candles_df, num_rows=30, step=10, return_period=5):

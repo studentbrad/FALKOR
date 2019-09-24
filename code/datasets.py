@@ -68,7 +68,7 @@ class ChartImageDataset(Dataset):
 
 	@staticmethod
 	def df_to_chart_arr(df):
-		arr = chart_to_arr(df)
+		return chart_to_arr(df)
 
 	@staticmethod
 	def format(df):

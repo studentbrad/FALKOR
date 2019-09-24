@@ -1,7 +1,8 @@
 from code.datasets import ChartImageDataset, DFDataset
 from code.data_processing import add_ti, candles_to_inputs_and_labels
+from code.models import CNN, RNN, load_model, save_model
 
-from torch.utils.data import DataLoader, Datasets
+from torch.utils.data import DataLoader, Dataset
 
 import warnings
 import torch
@@ -9,6 +10,8 @@ import os
 import shutil
 import pandas as pd
 import numpy as np
+
+
 
 torch.backends.cudnn.benchmark = True
 
@@ -115,7 +118,7 @@ def train_on_df(model, candles_df, lr, num_epochs, model_type, debug):
     
     candles = add_ti(candles_df)
     
-    labels, inputs = candles_to_inputs_and_labels(candles_df))
+    labels, inputs = candles_to_inputs_and_labels(candles_df)
 
     # calculate s - index of train/valid split
     s = int(len(inputs) * 0.7)

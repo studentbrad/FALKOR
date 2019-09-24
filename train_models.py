@@ -1,11 +1,8 @@
-from helpers.charting_tools import Charting
-from helpers.data_processing import add_ti, clean_candles_df, split_candles, price_returns
-from helpers.saving_models import load_model, save_model
-from helpers.datasets import DFTimeSeriesDataset, OCHLVDataset, GRUCNNDataset
-from torch.utils.data import DataLoader, Dataset
-from BookWorm import BookWorm, BinanceWrapper
-from PIL import Image
-from tqdm import tqdm_notebook as tqdm
+from code.datasets import ChartImageDataset, DFDataset
+from code.data_processing import add_ti, candles_to_inputs_and_labels
+
+from torch.utils.data import DataLoader, Datasets
+
 import warnings
 import torch
 import os
@@ -14,10 +11,6 @@ import pandas as pd
 import numpy as np
 
 torch.backends.cudnn.benchmark = True
-
-from models.GRU.GRU import GRUnet
-from models.CNN.CNN import CNN
-from models.GRU_CNN import GRU_CNN
 
 # Parameters
 params = {'batch_size': 64,
@@ -120,44 +113,29 @@ def train(model, optim, error_func, num_epochs, train_dl, valid_dl, test_dl=None
 def train_on_df(model, candles_df, lr, num_epochs, model_type, debug):
     torch.backends.cudnn.benchmark = True
     
-    print('cleaning data')
-    # simple data cleaning 
-    candles = clean_candles_df(candles_df)
+    candles = add_ti(candles_df)
     
-    print('adding technical indicators')
-    candles = add_ti(candles)
-    
-    print('creating input and label lists')
-    labels = price_returns(candles)
-    inputs = split_candles(candles)
-    # remove all inputs without a label
-    inputs = inputs[len(inputs)-len(labels):]
+    labels, inputs = candles_to_inputs_and_labels(candles_df))
 
     # calculate s - index of train/valid split
     s = int(len(inputs) * 0.7)
-    
-    print('creating Datasets and DataLoaders')
 
     if model_type == 'CNN':
-        train_ds = OCHLVDataset(inputs[:s], labels[:s])
-        valid_ds = OCHLVDataset(inputs[s:], labels[s:])
+        train_ds = ChartImageDataset(inputs[:s], labels[:s])
+        valid_ds = ChartImageDataset(inputs[s:], labels[s:])
     elif model_type =='GRU':
-        train_ds = DFTimeSeriesDataset(inputs[:s], labels[:s])
-        valid_ds = DFTimeSeriesDataset(inputs[s:], labels[s:])
-    elif model_type == 'GRU_CNN':
-        train_ds = GRUCNNDataset(inputs[:s], labels[:s])
-        valid_ds = GRUCNNDataset(inputs[s:], labels[s:])
-
+        train_ds = DFDataset(inputs[:s], labels[:s])
+        valid_ds = DFDataset(inputs[s:], labels[s:])
+   
     train_dl = DataLoader(train_ds, drop_last=True, **params)
     valid_dl = DataLoader(valid_ds, drop_last=True, **params)
 
     optim = torch.optim.Adam(model.parameters(), lr)
     
-    print('commencing training')
     train(model=model, optim=optim, error_func=RMSE, num_epochs=num_epochs, train_dl=train_dl, valid_dl=valid_dl, debug=debug)
 
 def train_gru(candles, file_name, lr, num_epochs, debug):
-    model = GRUnet(11, 30, 64, 500, 3).cuda()
+    model = GRUnet(11, 30, 64, 100, 3).cuda()
     load_model(model, file_name)
     train_on_df(model, candles, lr, num_epochs, 'GRU', debug=debug)
     save_model(model, file_name)
@@ -169,21 +147,6 @@ def train_cnn(candles, file_name, lr, num_epochs, debug):
     save_model(model, file_name)
 
 
-def train_grucnn(candles, gru_w, cnn_w, lr, num_epochs, debug):
-    # Load weights from gru_w and cnn_w into grucnn
-    gru = GRU(11, 30, 64, 500, 3).cuda()
-    cnn = CNN().cuda()
-
-    load_model(gru, gru_w)
-    load_model(cnn, cnn_w)
-    
-    model = GRU_CNN(11, 30, 64, 500, 3).cuda()
-    model.load_cnn_weights(cnn)
-    model.load_gru_weights(gru)
-
-    train_on_df(model, candles, lr, num_epochs,)
-    
-
 def train_from_cli(modeltype, datapath, outputpath, lr, epochs, debug):
     candles_df = pd.read_csv(datapath)
     print("Training {} with {} lr and {} epochs. Saving weights to {}".format(modeltype, lr, epochs, outputpath) )
@@ -192,10 +155,11 @@ def train_from_cli(modeltype, datapath, outputpath, lr, epochs, debug):
     elif modeltype=='CNN':
         train_cnn(candles_df, outputpath, lr, epochs, debug)
 
-def index_marks(nrows, chunk_size):
-    return range(1 * chunk_size, (nrows // chunk_size + 1) * chunk_size, chunk_size)
+def split_df(dfm, chunk_size):
+    """Split a dataframe into chunk_size smaller chunks"""
+    def index_marks(nrows, chunk_size):
+        return range(1 * chunk_size, (nrows // chunk_size + 1) * chunk_size, chunk_size)
 
-def split(dfm, chunk_size):
     indices = index_marks(dfm.shape[0], chunk_size)
 
     return np.split(dfm, indices)
@@ -213,7 +177,7 @@ if __name__ == '__main__':
     candles_big = pd.read_csv(datapath)
 
 
-    chunks = split(candles_big, num_chunks)
+    chunks = split_df(candles_big, num_chunks)
     start_chunk = int(input("Select chunk to start training from (out of {}): ".format(len(chunks))))
     
     for i, candles_chunk in enumerate(chunks):

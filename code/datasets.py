@@ -1,8 +1,8 @@
 """This module contains all Datasets used in training various PyTorch models"""
 
 import numpy as np
-from data_processing import minmaxnorm
-from charting import chart_to_arr
+from .data_processing import minmaxnorm
+from .charting import chart_to_arr
 from torch.utils.data import Dataset
 
 class DFDataset(Dataset):

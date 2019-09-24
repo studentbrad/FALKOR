@@ -115,7 +115,7 @@ def train_on_df(model, candles_df, lr, num_epochs, model_type, debug):
     
     candles = add_ti(candles_df)
     
-    labels, inputs = candles_to_inputs_and_labels(candles_df))
+    labels, inputs = candles_to_inputs_and_labels(candles_df)
 
     # calculate s - index of train/valid split
     s = int(len(inputs) * 0.7)

@@ -16,7 +16,7 @@ import numpy as np
 torch.backends.cudnn.benchmark = True
 
 # Parameters
-params = {'batch_size': 64,
+params = {'batch_size': 1,
           'shuffle': True,
           'num_workers': 5}
 
@@ -116,9 +116,9 @@ def train(model, optim, error_func, num_epochs, train_dl, valid_dl, test_dl=None
 def train_on_df(model, candles_df, lr, num_epochs, model_type, debug):
     torch.backends.cudnn.benchmark = True
     
-    candles = add_ti(candles_df)
+    candles_df = add_ti(candles_df)
     
-    labels, inputs = candles_to_inputs_and_labels(candles_df)
+    inputs, labels = candles_to_inputs_and_labels(candles_df)
 
     # calculate s - index of train/valid split
     s = int(len(inputs) * 0.7)
@@ -126,7 +126,7 @@ def train_on_df(model, candles_df, lr, num_epochs, model_type, debug):
     if model_type == 'CNN':
         train_ds = ChartImageDataset(inputs[:s], labels[:s])
         valid_ds = ChartImageDataset(inputs[s:], labels[s:])
-    elif model_type =='GRU':
+    elif model_type =='RNN':
         train_ds = DFDataset(inputs[:s], labels[:s])
         valid_ds = DFDataset(inputs[s:], labels[s:])
    
@@ -137,10 +137,10 @@ def train_on_df(model, candles_df, lr, num_epochs, model_type, debug):
     
     train(model=model, optim=optim, error_func=RMSE, num_epochs=num_epochs, train_dl=train_dl, valid_dl=valid_dl, debug=debug)
 
-def train_gru(candles, file_name, lr, num_epochs, debug):
-    model = GRUnet(11, 30, 64, 100, 3).cuda()
+def train_rnn(candles, file_name, lr, num_epochs, debug):
+    model = RNN(11, 30, params['batch_size'], 100, 3).cuda()
     load_model(model, file_name)
-    train_on_df(model, candles, lr, num_epochs, 'GRU', debug=debug)
+    train_on_df(model, candles, lr, num_epochs, 'RNN', debug=debug)
     save_model(model, file_name)
 
 def train_cnn(candles, file_name, lr, num_epochs, debug):
@@ -148,15 +148,6 @@ def train_cnn(candles, file_name, lr, num_epochs, debug):
     load_model(model, file_name)
     train_on_df(model, candles, lr, num_epochs, 'CNN', debug=debug)
     save_model(model, file_name)
-
-
-def train_from_cli(modeltype, datapath, outputpath, lr, epochs, debug):
-    candles_df = pd.read_csv(datapath)
-    print("Training {} with {} lr and {} epochs. Saving weights to {}".format(modeltype, lr, epochs, outputpath) )
-    if modeltype=='GRU':
-        train_gru(candles_df, outputpath, lr, epochs, debug)
-    elif modeltype=='CNN':
-        train_cnn(candles_df, outputpath, lr, epochs, debug)
 
 def split_df(dfm, chunk_size):
     """Split a dataframe into chunk_size smaller chunks"""
@@ -168,7 +159,7 @@ def split_df(dfm, chunk_size):
     return np.split(dfm, indices)
 
 if __name__ == '__main__':
-    models = ['GRU', 'CNN', 'GRUCNN']
+    models = ['RNN', 'CNN']
     model = input("Select model to train from {}: ".format(models))
     datapath = input("Please input path to OCHLV .csv file: ")
     num_chunks = int(input("Chunk size for training. Max is num_rows(dataframe): "))
@@ -187,7 +178,7 @@ if __name__ == '__main__':
         if i < start_chunk: 
             continue
         print("{}/{}".format(i, len(chunks)))
-        if model == 'GRU':
-            train_gru(candles_chunk, outputpath, lr, epochs, debug)
+        if model == 'RNN':
+            train_rnn(candles_chunk, outputpath, lr, epochs, debug)
         elif model == 'CNN':
             train_cnn(candles_chunk, outputpath, lr, epochs, debug)

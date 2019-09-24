@@ -44,9 +44,8 @@ class DFDataset(Dataset):
 
 		# normalize with minmax
 		x = DFDataset.normalize_df(df, minmaxnorm)
-
-		x = DFDataset.drop_time_col(df)
-		x = DFDataset.df_to_arr(df)
+		x = DFDataset.drop_time_col(x)
+		x = DFDataset.df_to_arr(x)
 		return x
 
 class ChartImageDataset(Dataset):

@@ -14,6 +14,7 @@ from .dataprocessing import \
     format_date_column, \
     add_technical_indicators, \
     split_dataframe, \
+    stack_dataframe, \
     create_rnn_input, \
     create_cnn_input
 
@@ -51,6 +52,17 @@ def test_split_dataframe():
     dfs = split_dataframe(df, 1, 1)
     assert dfs[0].iloc[0]['Close'] == 55.55
     assert dfs[1].iloc[0]['Close'] == 92.57
+
+
+def test_stack_dataframe():
+    """
+    Tests stack_dataframe.
+    """
+    df = pd.DataFrame([[55.55], [92.57], [99.52]], columns=['Close'])
+    df = stack_dataframe(df)
+    assert df.iloc[0]['Close'] == 55.55
+    assert df.iloc[1]['Close'] == np.log(92.57 / 55.55)
+    assert df.iloc[2]['Close'] == np.log(99.52 / 92.57)
 
 
 def test_create_rnn_input():

@@ -65,16 +65,32 @@ def add_technical_indicators(df):
 
 def split_dataframe(df, window, step):
     """
-    Takes a dataframe and splits it into smaller dataframes.
+    Takes a dataframe of size n x m
+    and creates dataframes of size window x m
+    with a moving start index index_i, index_(i + 1), ..., index_n where index_(i + 1) = index_i + step.
     :param df: dataframe
     :param window: size of the window
     :param step: size of the step
     :return: dataframes
     """
-    df = df.reset_index(drop=True)
     rows = df.shape[0]  # total number of rows in the dataframe
-    dfs = [df.iloc[i: i + window, :] for i in range(0, rows, step) if i + window <= rows]
+    dfs = [df.iloc[i: i + window, :].reset_index(drop=True) for i in range(0, rows, step) if i + window <= rows]
     return dfs
+
+
+def stack_dataframe(df):
+    """
+    Takes a dataframe of size n x m with rows r_i, r_(i + 1), ..., r_n
+    and creates a dataframe of size (n - 1) x m
+    with relative log values where r_(i + 1) = log(r_(i + 1) / r_i).
+    :param df: dataframe
+    :return: dataframe, first row
+    """
+    rows = df.shape[0]  # total number of rows in the dataframe
+    for i in range(rows - 1, 0, -1):
+        df.iloc[i] = df.iloc[i] / df.iloc[i - 1]
+    df.iloc[1:] = df.iloc[1:].apply(np.log)
+    return df
 
 
 def create_rnn_input(df):
@@ -93,6 +109,8 @@ def create_rnn_input(df):
     df = df.set_index('Date')
     # add technical indicators
     df = add_technical_indicators(df)
+    # stack the dataframe
+    df = stack_dataframe(df)
     # move the dataframe to a numpy array
     array = np.array(df)
     return array

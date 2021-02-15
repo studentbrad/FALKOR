@@ -18,31 +18,18 @@ columns_remap = {'<DATE>': 'Date',
                  '<VOL>': 'Volume'}
 
 
-def perform_normalization(df, columns):
+def format_date_column(df, column='Date', datetime_format='%Y%m%d'):
     """
-    Takes a dataframe and performs normalization on the dataframe.
+    Takes a dataframe and formats the date column.
     :param df: dataframe
-    :param columns: columns
-    :return: dataframe
-    """
-    df_filtered = df.filter(items=columns)
-    maximum = df_filtered.max().max()
-    minimum = df_filtered.min().min()
-    for column in columns:
-        df[column] = (df[column] - minimum) / (maximum - minimum)
-    return df
-
-
-def format_date_column(df):
-    """
-    Takes a dataframe and formats the date column ('Date').
-    :param df: dataframe
+    :param column: column
+    :param datetime_format: format
     :return: dataframe
     """
     # format the date column as a string
-    df['Date'] = df['Date'].astype(str)
+    df[column] = df[column].astype(str)
     # format the date column as a datetime object
-    df['Date'] = df['Date'].apply(lambda x: datetime.datetime.strptime(x, '%Y%m%d'))
+    df[column] = df[column].apply(lambda x: datetime.datetime.strptime(x, datetime_format))
     return df
 
 
@@ -76,27 +63,18 @@ def add_technical_indicators(df):
     return df
 
 
-def create_cdfs_and_fdfs(df, window, step, return_period):
+def split_dataframe(df, window, step):
     """
-    Takes a dataframe and creates current dataframes and future dataframes.
+    Takes a dataframe and splits it into smaller dataframes.
     :param df: dataframe
     :param window: size of the window
     :param step: size of the step
-    :param return_period: return period
-    :return: current dataframes and future dataframes
+    :return: dataframes
     """
     df = df.reset_index(drop=True)
     rows = df.shape[0]  # total number of rows in the dataframe
-    cdfs = []
-    fdfs = []
-    for i in range(0, rows - window, step):
-        j = i + return_period
-        if j + window <= rows:  # future dataframe can be formed
-            cdf = df.iloc[i: i + window, :]  # current dataframe
-            fdf = df.iloc[j: j + window, :]  # future dataframe
-            cdfs.append(cdf)
-            fdfs.append(fdf)
-    return cdfs, fdfs
+    dfs = [df.iloc[i: i + window, :] for i in range(0, rows, step) if i + window <= rows]
+    return dfs
 
 
 def create_rnn_input(df):
@@ -115,26 +93,6 @@ def create_rnn_input(df):
     df = df.set_index('Date')
     # add technical indicators
     df = add_technical_indicators(df)
-    # drop all columns with nan
-    df = df.dropna(axis=1, how='all')
-    # perform group normalization
-    columns = ['Open',
-               'High',
-               'Low',
-               'Close',
-               'SMA20',
-               'SMA50',
-               'EMA13',
-               'BBU20',
-               'BBL20',
-               'BBU50',
-               'BBL50']
-    df = perform_normalization(df, columns)
-    # perform individual normalization
-    columns = ['Volume',
-               'OBV']
-    for column in columns:
-        df = perform_normalization(df, [column])
     # move the dataframe to a numpy array
     array = np.array(df)
     return array
@@ -200,35 +158,4 @@ def create_cnn_input(df):
     # plt.show()
     # close the figure
     plt.close(fig)
-    return array
-
-
-def create_label(df):
-    """
-    Takes a dataframe and creates a Recurrent Neural Network (RNN) label.
-    :param df: dataframe
-    :return: rnn label
-    """
-    # rename columns
-    df = df.rename(columns_remap, axis=1)
-    # filter the columns
-    df = df.filter(items=list(columns_remap.values()))
-    # format the date column
-    df = format_date_column(df)
-    # set the date column as the index
-    df = df.set_index('Date')
-    # perform group normalization
-    columns = ['Open',
-               'High',
-               'Low',
-               'Close']
-    df = perform_normalization(df, columns)
-    # perform individual normalization
-    columns = ['Volume']
-    for column in columns:
-        df = perform_normalization(df, [column])
-    # only consider the final row
-    df = df.iloc[-1]
-    # move the dataframe to a numpy array
-    array = np.array(df)
     return array

@@ -9,13 +9,44 @@ import matplotlib.pyplot as plt
 import mplfinance as mpf
 import numpy as np
 
-# columns in the dataframe with renaming
-columns_remap = {'<DATE>': 'Date',
-                 '<OPEN>': 'Open',
-                 '<HIGH>': 'High',
-                 '<LOW>': 'Low',
-                 '<CLOSE>': 'Close',
-                 '<VOL>': 'Volume'}
+# columns in the dataframe with remapping
+default_columns_remap = {
+    '<DATE>': 'Date',
+    '<OPEN>': 'Open',
+    '<HIGH>': 'High',
+    '<LOW>': 'Low',
+    '<CLOSE>': 'Close',
+    '<VOL>': 'Volume'
+}
+
+# columns in the dataframe
+default_columns = list(default_columns_remap.values())
+
+
+def rename_columns(df, columns_remap=None):
+    """
+    Takes a dataframe and renames the columns.
+    :param df: dataframe
+    :param columns_remap: dictionary of columns remap
+    :return: dataframe
+    """
+    if columns_remap is None:
+        columns_remap = default_columns_remap
+    df = df.rename(columns_remap, axis=1)
+    return df
+
+
+def filter_columns(df, columns=None):
+    """
+    Takes a dataframe and filters the columns.
+    :param df: dataframe
+    :param columns: list of columns
+    :return: dataframe
+    """
+    if columns is None:
+        columns = default_columns
+    df = df.filter(items=columns)
+    return df
 
 
 def format_date_column(df, column='Date', datetime_format='%Y%m%d'):
@@ -99,10 +130,10 @@ def create_rnn_input(df):
     :param df: dataframe
     :return: rnn input
     """
-    # rename columns
-    df = df.rename(columns_remap, axis=1)
+    # rename the columns
+    df = rename_columns(df)
     # filter the columns
-    df = df.filter(items=list(columns_remap.values()))
+    df = filter_columns(df)
     # format the date column
     df = format_date_column(df)
     # set the date column as the index
@@ -122,10 +153,10 @@ def create_cnn_input(df):
     :param df: dataframe
     :return: cnn input
     """
-    # rename columns
-    df = df.rename(columns_remap, axis=1)
+    # rename the columns
+    df = rename_columns(df)
     # filter the columns
-    df = df.filter(items=list(columns_remap.values()))
+    df = filter_columns(df)
     # format the date column
     df = format_date_column(df)
     # set the date column as the index

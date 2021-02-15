@@ -10,7 +10,8 @@ import numpy as np
 import pandas as pd
 
 from .dataprocessing import \
-    columns_remap, \
+    rename_columns, \
+    filter_columns, \
     format_date_column, \
     add_technical_indicators, \
     split_dataframe, \
@@ -19,11 +20,38 @@ from .dataprocessing import \
     create_cnn_input
 
 
+def test_rename_columns():
+    """
+    Tests rename_columns.
+    """
+    df = pd.DataFrame([[20210101, 0, 0, 0, 0, 0]],
+                      columns=['<DATE>', '<OPEN>', '<HIGH>', '<LOW>', '<CLOSE>', '<VOL>'])
+    df = rename_columns(df)
+    actual = df.columns
+    expected = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
+    for column in actual:
+        assert column in expected
+
+
+def test_filter_columns():
+    """
+    Tests filter_columns.
+    """
+    df = pd.DataFrame([[20210101, 0, 0, 0, 0, 0, 0]],
+                      columns=['Date', 'Open', 'High', 'Low', 'Close', 'Volume', 'N/A'])
+    df = filter_columns(df)
+    actual = df.columns
+    expected = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
+    for column in actual:
+        assert column in expected
+
+
 def test_format_date_column():
     """
     Tests format_date_column.
     """
-    df = pd.DataFrame([[20210101, 0]], columns=['Date', 'Close'])
+    df = pd.DataFrame([[20210101, 0]],
+                      columns=['Date', 'Close'])
     df = format_date_column(df)
     actual = df['Date'][0]
     expected = datetime.datetime(2021, 1, 1)
@@ -38,7 +66,7 @@ def test_add_technical_indicators():
                for root, _, files in os.walk('data')
                for file in files]
     for df in candles:
-        df = df.rename(columns_remap, axis=1)
+        df = rename_columns(df)
         df = add_technical_indicators(df)
         _, columns = df.shape
         assert columns == 18
@@ -48,7 +76,8 @@ def test_split_dataframe():
     """
     Tests split_dataframe.
     """
-    df = pd.DataFrame([[55.55], [92.57]], columns=['Close'])
+    df = pd.DataFrame([[55.55], [92.57]],
+                      columns=['Close'])
     dfs = split_dataframe(df, 1, 1)
     assert dfs[0].iloc[0]['Close'] == 55.55
     assert dfs[1].iloc[0]['Close'] == 92.57
@@ -58,7 +87,8 @@ def test_stack_dataframe():
     """
     Tests stack_dataframe.
     """
-    df = pd.DataFrame([[55.55], [92.57], [99.52]], columns=['Close'])
+    df = pd.DataFrame([[55.55], [92.57], [99.52]],
+                      columns=['Close'])
     df = stack_dataframe(df)
     assert df.iloc[0]['Close'] == 55.55
     assert df.iloc[1]['Close'] == np.log(92.57 / 55.55)

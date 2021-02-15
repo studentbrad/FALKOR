@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import mplfinance as mpf
 import numpy as np
 
-# columns in the dataframe with remapping
+# default dictionary of columns remapping
 default_columns_remap = {
     '<DATE>': 'Date',
     '<OPEN>': 'Open',
@@ -19,7 +19,7 @@ default_columns_remap = {
     '<VOL>': 'Volume'
 }
 
-# columns in the dataframe
+# default list of columns
 default_columns = list(default_columns_remap.values())
 
 
@@ -27,7 +27,7 @@ def rename_columns(df, columns_remap=None):
     """
     Takes a dataframe and renames the columns.
     :param df: dataframe
-    :param columns_remap: dictionary of columns remap
+    :param columns_remap: dictionary of columns remapping
     :return: dataframe
     """
     if columns_remap is None:

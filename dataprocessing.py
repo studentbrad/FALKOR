@@ -30,8 +30,10 @@ def rename_columns(df, columns_remap=None):
     :param columns_remap: dictionary of columns remapping
     :return: dataframe
     """
+    # if the dictionary of columns remapping is not given, use the default
     if columns_remap is None:
         columns_remap = default_columns_remap
+    # rename the columns
     df = df.rename(columns_remap, axis=1)
     return df
 
@@ -43,8 +45,10 @@ def filter_columns(df, columns=None):
     :param columns: list of columns
     :return: dataframe
     """
+    # if the list of columns is not given, use the default
     if columns is None:
         columns = default_columns
+    # filter the columns
     df = df.filter(items=columns)
     return df
 
@@ -61,6 +65,23 @@ def format_date_column(df, column='Date', datetime_format='%Y%m%d'):
     df[column] = df[column].astype(str)
     # format the date column as a datetime object
     df[column] = df[column].apply(lambda x: datetime.datetime.strptime(x, datetime_format))
+    return df
+
+
+def format_dataframe(df):
+    """
+    Takes a dataframe and formats it.
+    :param df: dataframe
+    :return: dataframe
+    """
+    # rename the columns
+    df = rename_columns(df)
+    # filter the columns
+    df = filter_columns(df)
+    # format the date column
+    df = format_date_column(df)
+    # set the date column as the index
+    df = df.set_index('Date')
     return df
 
 
@@ -130,14 +151,8 @@ def create_rnn_input(df):
     :param df: dataframe
     :return: rnn input
     """
-    # rename the columns
-    df = rename_columns(df)
-    # filter the columns
-    df = filter_columns(df)
-    # format the date column
-    df = format_date_column(df)
-    # set the date column as the index
-    df = df.set_index('Date')
+    # format the dataframe
+    df = format_dataframe(df)
     # add technical indicators
     df = add_technical_indicators(df)
     # stack the dataframe
@@ -153,18 +168,10 @@ def create_cnn_input(df):
     :param df: dataframe
     :return: cnn input
     """
-    # rename the columns
-    df = rename_columns(df)
-    # filter the columns
-    df = filter_columns(df)
-    # format the date column
-    df = format_date_column(df)
-    # set the date column as the index
-    df = df.set_index('Date')
+    # format the dataframe
+    df = format_dataframe(df)
     # add technical indicators
     df = add_technical_indicators(df)
-    # drop all columns with nan
-    df = df.dropna(axis=1, how='all')
     # create the marketcolors
     marketcolors = mpf.make_marketcolors(up='green',
                                          down='red',

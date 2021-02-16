@@ -13,6 +13,7 @@ from .dataprocessing import \
     rename_columns, \
     filter_columns, \
     format_date_column, \
+    format_dataframe, \
     add_technical_indicators, \
     split_dataframe, \
     stack_dataframe, \
@@ -50,12 +51,27 @@ def test_format_date_column():
     """
     Tests format_date_column.
     """
-    df = pd.DataFrame([[20210101, 0]],
-                      columns=['Date', 'Close'])
+    df = pd.DataFrame([[20210101]],
+                      columns=['Date'])
     df = format_date_column(df)
     actual = df['Date'][0]
     expected = datetime.datetime(2021, 1, 1)
     assert actual == expected
+
+
+def test_format_dataframe():
+    """
+    Tests format_dataframe.
+    """
+    df = pd.DataFrame([[20210101, 0, 0, 0, 0, 0]],
+                      columns=['<DATE>', '<OPEN>', '<HIGH>', '<LOW>', '<CLOSE>', '<VOL>'])
+    df = format_dataframe(df)
+    assert df.index[0] == datetime.datetime(2021, 1, 1)
+    assert df['Open'][0] == 0
+    assert df['High'][0] == 0
+    assert df['Low'][0] == 0
+    assert df['Close'][0] == 0
+    assert df['Volume'][0] == 0
 
 
 def test_add_technical_indicators():
@@ -79,8 +95,8 @@ def test_split_dataframe():
     df = pd.DataFrame([[55.55], [92.57]],
                       columns=['Close'])
     dfs = split_dataframe(df, 1, 1)
-    assert dfs[0].iloc[0]['Close'] == 55.55
-    assert dfs[1].iloc[0]['Close'] == 92.57
+    assert dfs[0]['Close'][0] == 55.55
+    assert dfs[1]['Close'][0] == 92.57
 
 
 def test_stack_dataframe():
@@ -90,9 +106,9 @@ def test_stack_dataframe():
     df = pd.DataFrame([[55.55], [92.57], [99.52]],
                       columns=['Close'])
     df = stack_dataframe(df)
-    assert df.iloc[0]['Close'] == 55.55
-    assert df.iloc[1]['Close'] == np.log(92.57 / 55.55)
-    assert df.iloc[2]['Close'] == np.log(99.52 / 92.57)
+    assert df['Close'][0] == 55.55
+    assert df['Close'][1] == np.log(92.57 / 55.55)
+    assert df['Close'][2] == np.log(99.52 / 92.57)
 
 
 def test_create_rnn_input():

@@ -22,6 +22,18 @@ default_columns_remap = {
 # default list of columns
 default_columns = list(default_columns_remap.values())
 
+# default list of technical indicators
+default_technical_indicators = [
+    'SMA20',
+    'SMA50',
+    'EMA13',
+    'OBV',
+    'BBU20',
+    'BBL20',
+    'BBU50',
+    'BBL50'
+]
+
 
 def rename_columns(df, columns_remap=None):
     """
@@ -85,33 +97,58 @@ def format_dataframe(df):
     return df
 
 
-def add_technical_indicators(df):
+def add_technical_indicators(df, price='Close', volume='Volume', technical_indicators=None):
     """
     Takes a dataframe and adds technical indicators.
     :param df: dataframe
+    :param price: price column name
+    :param volume: volume column name
+    :param technical_indicators: list of technical indicators
     :return: dataframe
     """
+    if technical_indicators is None:
+        technical_indicators = default_technical_indicators
+    if 'SMA20' in technical_indicators or \
+            'BBU20' in technical_indicators or \
+            'BBL20' in technical_indicators:
+        rolling20 = df[price].rolling(window=20)
+        mean20 = rolling20.mean()
+        std20 = rolling20.std()
+    else:
+        mean20 = None
+        std20 = None
+    if 'SMA50' in technical_indicators or \
+            'BBU50' in technical_indicators or \
+            'BBL50' in technical_indicators:
+        rolling50 = df[price].rolling(window=50)
+        mean50 = rolling50.mean()
+        std50 = rolling50.std()
+    else:
+        mean50 = None
+        std50 = None
     # calculate the simple moving average over a 20 day windows
-    rolling20 = df['Close'].rolling(window=20)
-    mean20 = rolling20.mean()
-    df['SMA20'] = mean20
+    if 'SMA20' in technical_indicators:
+        df['SMA20'] = mean20
     # calculate the simple moving average over a 50 day window
-    rolling50 = df['Close'].rolling(window=50)
-    mean50 = rolling50.mean()
-    df['SMA50'] = mean50
+    if 'SMA50' in technical_indicators:
+        df['SMA50'] = mean50
     # calculate the exponential moving average for a span of 13 days
-    df['EMA13'] = df['Close'].ewm(span=13, adjust=False).mean()
+    if 'EMA13' in technical_indicators:
+        df['EMA13'] = df[price].ewm(span=13, adjust=False).mean()
     # calculate the on-balance volume
-    df['OBV'] = np.where(df['Close'] > df['Close'].shift(1), df['Volume'],
-                         np.where(df['Close'] < df['Close'].shift(1), -df['Volume'], 0)).cumsum()
+    if 'OBV' in technical_indicators:
+        df['OBV'] = np.where(df[price] > df[price].shift(1), df[volume],
+                             np.where(df[price] < df[price].shift(1), -df[volume], 0)).cumsum()
     # calculate the short term bollinger bands
-    std20 = rolling20.std()
-    df['BBU20'] = mean20 + std20 * 2
-    df['BBL20'] = mean20 - std20 * 2
+    if 'BBU20' in technical_indicators:
+        df['BBU20'] = mean20 + std20 * 2
+    if 'BBL20' in technical_indicators:
+        df['BBL20'] = mean20 - std20 * 2
     # calculate the long term bollinger bands
-    std50 = rolling50.std()
-    df['BBU50'] = mean50 + std50 * 2.5
-    df['BBL50'] = mean50 - std50 * 2.5
+    if 'BBU50' in technical_indicators:
+        df['BBU50'] = mean50 + std50 * 2.5
+    if 'BBL50' in technical_indicators:
+        df['BBL50'] = mean50 - std50 * 2.5
     return df
 
 

@@ -67,11 +67,11 @@ def test_format_dataframe():
                       columns=['<DATE>', '<OPEN>', '<HIGH>', '<LOW>', '<CLOSE>', '<VOL>'])
     df = format_dataframe(df)
     assert df.index[0] == datetime.datetime(2021, 1, 1)
-    assert df['Open'][0] == 0
-    assert df['High'][0] == 0
-    assert df['Low'][0] == 0
-    assert df['Close'][0] == 0
-    assert df['Volume'][0] == 0
+    actual = df.columns
+    expected = ['Open', 'High', 'Low', 'Close', 'Volume']
+    for column in actual:
+        assert df[column][0] == 0
+        assert column in expected
 
 
 def test_add_technical_indicators():

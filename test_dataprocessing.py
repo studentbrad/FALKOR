@@ -15,8 +15,9 @@ from .dataprocessing import \
     format_date_column, \
     format_dataframe, \
     add_technical_indicators, \
-    split_dataframe, \
-    stack_dataframe, \
+    create_smaller_dataframes, \
+    create_relative_dataframe, \
+    create_logarithm_dataframe, \
     create_rnn_input, \
     create_cnn_input
 
@@ -88,27 +89,39 @@ def test_add_technical_indicators():
         assert columns == 18
 
 
-def test_split_dataframe():
+def test_create_smaller_dataframes():
     """
-    Tests split_dataframe.
+    Tests create_smaller_dataframes.
     """
     df = pd.DataFrame([[55.55], [92.57]],
                       columns=['Close'])
-    dfs = split_dataframe(df, 1, 1)
+    dfs = create_smaller_dataframes(df, 1, 1)
     assert dfs[0]['Close'][0] == 55.55
     assert dfs[1]['Close'][0] == 92.57
 
 
-def test_stack_dataframe():
+def test_create_relative_dataframe():
     """
-    Tests stack_dataframe.
+    Tests create_relative_dataframe.
     """
     df = pd.DataFrame([[55.55], [92.57], [99.52]],
                       columns=['Close'])
-    df = stack_dataframe(df)
+    df = create_relative_dataframe(df)
     assert df['Close'][0] == 55.55
-    assert df['Close'][1] == np.log(92.57 / 55.55)
-    assert df['Close'][2] == np.log(99.52 / 92.57)
+    assert df['Close'][1] == 92.57 / 55.55
+    assert df['Close'][2] == 99.52 / 92.57
+
+
+def test_create_logarithm_dataframe():
+    """
+    Tests create_logarithm_dataframe.
+    """
+    df = pd.DataFrame([[55.55], [92.57], [99.52]],
+                      columns=['Close'])
+    df = create_logarithm_dataframe(df)
+    assert df['Close'][0] == 55.55
+    assert df['Close'][1] == np.log(92.57)
+    assert df['Close'][2] == np.log(99.52)
 
 
 def test_create_rnn_input():

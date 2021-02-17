@@ -152,7 +152,7 @@ def add_technical_indicators(df, price='Close', volume='Volume', technical_indic
     return df
 
 
-def split_dataframe(df, window, step):
+def create_smaller_dataframes(df, window, step):
     """
     Takes a dataframe of size n x m
     and creates dataframes of size window x m
@@ -167,18 +167,36 @@ def split_dataframe(df, window, step):
     return dfs
 
 
-def stack_dataframe(df):
+def create_relative_dataframe(df, start_index=1, end_index=None):
     """
     Takes a dataframe of size n x m with rows r_i, r_(i + 1), ..., r_n
-    and creates a dataframe of size (n - 1) x m
-    with relative log values where r_(i + 1) = log(r_(i + 1) / r_i).
+    and creates a dataframe of size n x m
+    with relative values where r_i' = r_i, r_(i + 1)' = r_(i + 1) / r_i, ..., r_n' = r_n / r_(n - 1).
     :param df: dataframe
-    :return: dataframe, first row
+    :param start_index: start index
+    :param end_index: end index
+    :return: dataframe
     """
-    rows = df.shape[0]  # total number of rows in the dataframe
-    for i in range(rows - 1, 0, -1):
+    if end_index is None:
+        end_index = df.shape[0]
+    for i in range(end_index - 1, start_index - 1, -1):
         df.iloc[i] = df.iloc[i] / df.iloc[i - 1]
-    df.iloc[1:] = df.iloc[1:].apply(np.log)
+    return df
+
+
+def create_logarithm_dataframe(df, start_index=1, end_index=None):
+    """
+    Takes a dataframe of size n x m with rows r_i, r_(i + 1), ..., r_n
+    and creates a dataframe of size n x m
+    with logarithm values where r_i' = r_i, r_(i + 1)' = log(r_(i + 1)), ..., r_n' = log(r_n).
+    :param df: dataframe
+    :param start_index: start index
+    :param end_index: end index
+    :return: dataframe
+    """
+    if end_index is None:
+        end_index = df.shape[0]
+    df.iloc[start_index:end_index] = df.iloc[start_index:end_index].apply(np.log)
     return df
 
 
@@ -192,8 +210,10 @@ def create_rnn_input(df):
     df = format_dataframe(df)
     # add technical indicators
     df = add_technical_indicators(df)
-    # stack the dataframe
-    df = stack_dataframe(df)
+    # create a relative dataframe
+    df = create_relative_dataframe(df)
+    # create a logarithm dataframe
+    df = create_logarithm_dataframe(df)
     # move the dataframe to a numpy array
     array = np.array(df)
     return array

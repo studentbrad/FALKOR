@@ -93,11 +93,12 @@ def test_create_smaller_dataframes():
     """
     Tests create_smaller_dataframes.
     """
-    df = pd.DataFrame([[55.55], [92.57]],
+    df = pd.DataFrame([[55.55], [92.57], [99.52]],
                       columns=['Close'])
     dfs = create_smaller_dataframes(df, 1, 1)
     assert dfs[0]['Close'][0] == 55.55
     assert dfs[1]['Close'][0] == 92.57
+    assert dfs[2]['Close'][0] == 99.52
 
 
 def test_create_relative_dataframe():

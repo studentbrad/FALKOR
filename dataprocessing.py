@@ -65,18 +65,18 @@ def filter_columns(df, columns=None):
     return df
 
 
-def format_date_column(df, column='Date', datetime_format='%Y%m%d'):
+def format_date_column(df, date='Date', datetime_format='%Y%m%d'):
     """
     Takes a dataframe and formats the date column.
     :param df: dataframe
-    :param column: column
+    :param date: date column name
     :param datetime_format: format
     :return: dataframe
     """
     # format the date column as a string
-    df[column] = df[column].astype(str)
+    df[date] = df[date].astype(str)
     # format the date column as a datetime object
-    df[column] = df[column].apply(lambda x: datetime.datetime.strptime(x, datetime_format))
+    df[date] = df[date].apply(lambda x: datetime.datetime.strptime(x, datetime_format))
     return df
 
 

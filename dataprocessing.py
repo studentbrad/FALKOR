@@ -200,11 +200,12 @@ def create_logarithm_dataframe(df, start_index=1, end_index=None):
     return df
 
 
-def create_rnn_input(df):
+def create_rnn_input_label(df, return_df=False):
     """
-    Takes a dataframe and creates an Recurrent Neural Network (RNN) input.
+    Takes a dataframe and creates an Recurrent Neural Network (RNN) input and label.
     :param df: dataframe
-    :return: rnn input
+    :param return_df: return the formatted dataframe
+    :return: input, label, dataframe (optional)
     """
     # format the dataframe
     df = format_dataframe(df)
@@ -216,14 +217,22 @@ def create_rnn_input(df):
     df = create_logarithm_dataframe(df)
     # move the dataframe to a numpy array
     array = np.array(df)
-    return array
+    # move the last row to the label
+    rnn_label = array[-1]
+    # remove the first row and the last row from the input
+    rnn_input = array[1:-1]
+    if return_df:
+        return rnn_input, rnn_label, df
+    else:
+        return rnn_input, rnn_label
 
 
-def create_cnn_input(df):
+def create_cnn_input_label(df, return_df=False):
     """
-    Takes a dataframe and creates a Convolutional Neural Network (CNN) input.
+    Takes a dataframe and creates a Convolutional Neural Network (CNN) input and label.
     :param df: dataframe
-    :return: cnn input
+    :param return_df: return the formatted dataframe
+    :return: input, label, dataframe (optional)
     """
     # format the dataframe
     df = format_dataframe(df)
@@ -262,13 +271,24 @@ def create_cnn_input(df):
     # draw the figure
     fig.canvas.draw()
     # move the figure to a numpy array
-    array = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+    cnn_input = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
     # reshape the numpy array to (height, width, channel)
-    array = array.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    cnn_input = cnn_input.reshape(fig.canvas.get_width_height()[::-1] + (3,))
     # move the rgb dimension to the start for pytorch compatibility
-    array = np.moveaxis(array, 2, 0)
+    cnn_input = np.moveaxis(cnn_input, 2, 0)
     # show the plot
     # plt.show()
     # close the figure
     plt.close(fig)
-    return array
+    # create a relative dataframe
+    df = create_relative_dataframe(df)
+    # create a logarithm dataframe
+    df = create_logarithm_dataframe(df)
+    # move the dataframe to a numpy array
+    array = np.array(df)
+    # move the last row to the label
+    cnn_label = array[-1]
+    if return_df:
+        return cnn_input, cnn_label, df
+    else:
+        return cnn_input, cnn_label

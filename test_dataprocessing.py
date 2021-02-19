@@ -18,8 +18,8 @@ from .dataprocessing import \
     create_smaller_dataframes, \
     create_relative_dataframe, \
     create_logarithm_dataframe, \
-    create_rnn_input, \
-    create_cnn_input
+    create_rnn_input_label, \
+    create_cnn_input_label
 
 
 def test_rename_columns():
@@ -125,9 +125,9 @@ def test_create_logarithm_dataframe():
     assert df['Close'][2] == np.log(99.52)
 
 
-def test_create_rnn_input():
+def test_create_rnn_input_label():
     """
-    Tests create_rnn_input.
+    Tests create_rnn_input_label.
     """
     candles = [pd.read_csv(os.path.join(root, file))
                for root, _, files in os.walk('data')
@@ -136,15 +136,17 @@ def test_create_rnn_input():
         i = random.randint(0, df.shape[0])
         window = random.randint(50, 100)
         df = df.iloc[i:i + window, :]
-        array = create_rnn_input(df)
-        rows, columns = array.shape
-        assert rows == window
+        rnn_input, rnn_label = create_rnn_input_label(df)
+        rows, columns = rnn_input.shape
+        assert rows == window - 2
+        assert columns == 13
+        columns, = rnn_label.shape
         assert columns == 13
 
 
-def test_create_cnn_input():
+def test_create_cnn_input_label():
     """
-    Tests create_cnn_input.
+    Tests create_cnn_input_label.
     """
     candles = [pd.read_csv(os.path.join(root, file))
                for root, _, files in os.walk('data')
@@ -153,8 +155,10 @@ def test_create_cnn_input():
         i = random.randint(0, df.shape[0])
         window = random.randint(50, 100)
         df = df.iloc[i:i + window, :]
-        array = create_cnn_input(df)
-        channels, rows, columns = array.shape
+        cnn_input, cnn_label = create_cnn_input_label(df)
+        channels, rows, columns = cnn_input.shape
         assert channels == 3
         assert rows == 224
         assert columns == 224
+        columns, = cnn_label.shape
+        assert columns == 13

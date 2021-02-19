@@ -78,8 +78,8 @@ class RNN(torch.nn.Module):
         self.dense2 = torch.nn.Linear(500, 100)
         # create the dense layer i.e. the conversion from size_3 to size_4
         self.dense3 = torch.nn.Linear(100, 13)
-        # create the dense layer i.e. the conversion from size_4 to size_5
-        self.dense4 = torch.nn.Linear(13, 5)
+        # # create the dense layer i.e. the conversion from size_4 to size_5
+        # self.dense4 = torch.nn.Linear(13, 5)
 
     def forward(self, x):
         """
@@ -107,10 +107,10 @@ class RNN(torch.nn.Module):
         x = torch.nn.functional.relu(x)
         # x has shape batch_size, num_rows, size_3
         x = self.dense3(x)
-        x = torch.nn.functional.relu(x)
-        # x has shape batch_size, num_rows, size_4
-        x = self.dense4(x)
-        # x has shape batch_size, num_rows, size_5
+        # x = torch.nn.functional.relu(x)
+        # # x has shape batch_size, num_rows, size_4
+        # x = self.dense4(x)
+        # # x has shape batch_size, num_rows, size_5
         return x
 
 
@@ -133,8 +133,8 @@ class CNN(torch.nn.Module):
         self.dense2 = torch.nn.Linear(500, 100)
         # create the dense layer i.e. the conversion from size_3 to size_4
         self.dense3 = torch.nn.Linear(100, 13)
-        # create the dense layer i.e. the conversion from size_4 to size_5
-        self.dense4 = torch.nn.Linear(13, 5)
+        # # create the dense layer i.e. the conversion from size_4 to size_5
+        # self.dense4 = torch.nn.Linear(13, 5)
 
     def forward(self, x):
         """
@@ -154,10 +154,10 @@ class CNN(torch.nn.Module):
         x = torch.nn.functional.relu(x)
         # x has shape batch_size, size_3
         x = self.dense3(x)
-        x = torch.nn.functional.relu(x)
-        # x has shape batch_size, size_4
-        x = self.dense4(x)
-        # x has shape batch_size, size_5
+        # x = torch.nn.functional.relu(x)
+        # # x has shape batch_size, size_4
+        # x = self.dense4(x)
+        # # x has shape batch_size, size_5
         return x
 
 
@@ -212,8 +212,8 @@ class RNNCNN(torch.nn.Module):
         self.dense2 = torch.nn.Linear(500, 100)
         # create the dense layer i.e. the conversion from size_3 to size_4
         self.dense3 = torch.nn.Linear(100, 13)
-        # create the dense layer i.e. the conversion from size_4 to size_5
-        self.dense4 = torch.nn.Linear(13, 5)
+        # # create the dense layer i.e. the conversion from size_4 to size_5
+        # self.dense4 = torch.nn.Linear(13, 5)
 
     def forward(self, x, weight=.5):
         """
@@ -250,10 +250,10 @@ class RNNCNN(torch.nn.Module):
         rnn_x = torch.nn.functional.relu(rnn_x)
         # rnn_x has shape batch_size, num_rows, size_3
         rnn_x = self.dense3(rnn_x)
-        rnn_x = torch.nn.functional.relu(rnn_x)
-        # rnn_x has shape batch_size, num_rows, size_4
-        rnn_x = self.dense4(rnn_x)
-        # rnn_x has shape batch_size, num_rows, size_5
+        # rnn_x = torch.nn.functional.relu(rnn_x)
+        # # rnn_x has shape batch_size, num_rows, size_4
+        # rnn_x = self.dense4(rnn_x)
+        # # rnn_x has shape batch_size, num_rows, size_5
         return rnn_x
 
     def load_cnn_weights(self, cnn):

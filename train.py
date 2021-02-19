@@ -3,15 +3,15 @@ This module contains all training for network models.
 """
 
 import os
-import random
 
 import pandas as pd
 import torch
+from sklearn.utils import shuffle
 
 from dataprocessing import \
-    create_cdfs_and_fdfs, \
-    create_rnn_input, \
-    create_cnn_input
+    create_smaller_dataframes, \
+    create_rnn_input_label, \
+    create_cnn_input_label
 from datasets import \
     ServeDataset
 from models import \
@@ -37,7 +37,7 @@ def _train(dataloader, model, optimizer, error_func):
         model.train()
         model.zero_grad()
         outputs = model(inputs)
-        loss = error_func(outputs, labels)
+        loss = error_func(outputs[:, -1, :], labels)
         losses.append(loss)
         loss.backward()
         optimizer.step()
@@ -60,9 +60,9 @@ def _valid(dataloader, model, error_func):
             model.eval()
             model.zero_grad()
             outputs = model(inputs)
-            loss = error_func(outputs, labels)
+            loss = error_func(outputs[:, -1, :], labels)
             losses.append(loss)
-    return round(float(sum(losses) / len(losses)), 6)
+    return round(float(sum(losses)) / len(losses), 6)
 
 
 def train(model, optimizer, error_func, num_epochs, train_dl, valid_dl):
@@ -90,7 +90,8 @@ def rmse(x, y):
     :return: rmse
     """
     mse = torch.nn.MSELoss()
-    return torch.sqrt(mse(x, y))
+    rmse = torch.sqrt(mse(x, y))
+    return rmse
 
 
 def train_on_directory(directory, model, model_type, num_epochs, lr):
@@ -110,39 +111,35 @@ def train_on_directory(directory, model, model_type, num_epochs, lr):
     candles = [pd.read_csv(file)
                for file in files]
     if model_type == 'RNN':
-        create_input = create_rnn_input
+        create_input_label = create_rnn_input_label
     elif model_type == 'CNN':
-        create_input = create_cnn_input
+        create_input_label = create_cnn_input_label
     else:
         raise ValueError
-    inputs = []
-    labels = []
-    for df in candles:
-        cdfs, fdfs = create_cdfs_and_fdfs(df,
-                                          window=100,
-                                          step=100,
-                                          return_period=1)
-        for cdf, fdf in zip(cdfs, fdfs):
-            temp_input = create_input(cdf)
-            temp_label = fdfs[-1]
-            inputs.extend(temp_input)
-            labels.extend(temp_label)
+    nn_inputs = []
+    nn_labels = []
+    for candle in candles:
+        dfs = create_smaller_dataframes(candle,
+                                        window=100,
+                                        step=100)
+        for df in dfs:
+            nn_input, nn_label = create_input_label(df)
+            nn_inputs.append(nn_input)
+            nn_labels.append(nn_label)
     # only take a portion of inputs for training
-    inputs_labels = list(zip(inputs, labels))
-    inputs_labels = random.shuffle(inputs_labels)
-    inputs, labels = zip(*inputs_labels)
+    nn_inputs, nn_labels = shuffle(nn_inputs, nn_labels)
     portion = .7
-    i = int(portion * len(inputs))
-    train_ds = ServeDataset(inputs[:i], labels[:i])
-    valid_ds = ServeDataset(inputs[i:], labels[i:])
+    i = int(portion * len(nn_inputs))
+    train_ds = ServeDataset(nn_inputs[:i], nn_labels[:i])
+    valid_ds = ServeDataset(nn_inputs[i:], nn_labels[i:])
     train_dl = torch.utils.data.DataLoader(train_ds,
                                            batch_size=1,
                                            shuffle=True,
-                                           num_workers=5)
+                                           num_workers=1)
     valid_dl = torch.utils.data.DataLoader(valid_ds,
                                            batch_size=1,
                                            shuffle=True,
-                                           num_workers=5)
+                                           num_workers=1)
     optimizer = torch.optim.Adam(model.parameters(), lr)
     train(model, optimizer, rmse, num_epochs, train_dl, valid_dl)
 

@@ -25,7 +25,7 @@ class TestRNN:
         batch_size, rows, columns = output.size()
         assert batch_size == 1
         assert rows == 100
-        assert columns == 5
+        assert columns == 13
 
 
 class TestCNN:
@@ -42,7 +42,7 @@ class TestCNN:
         output = model(x)
         batch_size, size = output.size()
         assert batch_size == 1
-        assert size == 5
+        assert size == 13
 
 
 class TestRNNCNN:
@@ -62,4 +62,4 @@ class TestRNNCNN:
         batch_size, rows, columns = output.size()
         assert batch_size == 1
         assert rows == 100
-        assert columns == 5
+        assert columns == 13

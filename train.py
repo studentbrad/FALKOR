@@ -34,14 +34,17 @@ def _train(dataloader, model, optimizer, error_func):
     for inputs, labels in dataloader:
         inputs, labels = inputs.float(), labels.float()
         inputs[inputs != inputs] = 0.
+        inputs = torch.clamp(inputs, 0., 1000.)
         model.train()
         model.zero_grad()
         outputs = model(inputs)
         loss = error_func(outputs[:, -1, :], labels)
         losses.append(loss)
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1e-1)
         optimizer.step()
-    return round(float(sum(losses)) / len(losses), 6)
+    loss = round(float(sum(losses)) / len(losses), 6)
+    return loss
 
 
 def _valid(dataloader, model, error_func):
@@ -57,12 +60,15 @@ def _valid(dataloader, model, error_func):
         for inputs, labels in dataloader:
             inputs, labels = inputs.float(), labels.float()
             inputs[inputs != inputs] = 0.
+            inputs = torch.clamp(inputs, 0., 1000.)
             model.eval()
             model.zero_grad()
             outputs = model(inputs)
             loss = error_func(outputs[:, -1, :], labels)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1e-1)
             losses.append(loss)
-    return round(float(sum(losses)) / len(losses), 6)
+    loss = round(float(sum(losses)) / len(losses), 6)
+    return loss
 
 
 def train(model, optimizer, error_func, num_epochs, train_dl, valid_dl):
@@ -130,18 +136,38 @@ def train_on_directory(directory, model, model_type, num_epochs, lr):
     nn_inputs, nn_labels = shuffle(nn_inputs, nn_labels)
     portion = .7
     i = int(portion * len(nn_inputs))
-    train_ds = ServeDataset(nn_inputs[:i], nn_labels[:i])
-    valid_ds = ServeDataset(nn_inputs[i:], nn_labels[i:])
-    train_dl = torch.utils.data.DataLoader(train_ds,
-                                           batch_size=1,
-                                           shuffle=True,
-                                           num_workers=1)
-    valid_dl = torch.utils.data.DataLoader(valid_ds,
-                                           batch_size=1,
-                                           shuffle=True,
-                                           num_workers=1)
+    # train_ds = ServeDataset(nn_inputs[:i], nn_labels[:i])
+    # valid_ds = ServeDataset(nn_inputs[i:], nn_labels[i:])
+    # train_dl = torch.utils.data.DataLoader(train_ds,
+    #                                        batch_size=1,
+    #                                        shuffle=True,
+    #                                        num_workers=1)
+    # valid_dl = torch.utils.data.DataLoader(valid_ds,
+    #                                        batch_size=1,
+    #                                        shuffle=True,
+    #                                        num_workers=1)
     optimizer = torch.optim.Adam(model.parameters(), lr)
-    train(model, optimizer, rmse, num_epochs, train_dl, valid_dl)
+    # train(model, optimizer, rmse, num_epochs, train_dl, valid_dl)
+    for i in range(len(nn_inputs)):
+        nn_inputs[i] = torch.Tensor(nn_inputs[i])
+    for i in range(len(nn_labels)):
+        nn_labels[i] = torch.Tensor(nn_labels[i])
+    for epoch_i in range(num_epochs):
+        losses = []
+        for nn_input, nn_label in zip(nn_inputs, nn_labels):
+            nn_input, nn_label = nn_input.float(), nn_label.float()
+            nn_input[nn_input != nn_input] = 0.
+            nn_input = torch.clamp(nn_input, 0., 1000.)
+            model.train()
+            model.zero_grad()
+            nn_output = model(nn_input.unsqueeze(0))
+            loss = rmse(nn_output[:, -1, :], nn_label)
+            losses.append(loss)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1e-1)
+            optimizer.step()
+        loss = round(float(sum(losses)) / len(losses), 6)
+        print(f'loss: {loss}')
 
 
 def train_rnn(directory, model_path, num_epochs, lr):

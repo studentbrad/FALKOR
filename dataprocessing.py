@@ -214,7 +214,7 @@ def create_rnn_input_label(df, return_df=False):
     # create a relative dataframe
     df = create_relative_dataframe(df)
     # create a logarithm dataframe
-    df = create_logarithm_dataframe(df)
+    # df = create_logarithm_dataframe(df)
     # move the dataframe to a numpy array
     array = np.array(df)
     # move the last row to the label
@@ -283,7 +283,7 @@ def create_cnn_input_label(df, return_df=False):
     # create a relative dataframe
     df = create_relative_dataframe(df)
     # create a logarithm dataframe
-    df = create_logarithm_dataframe(df)
+    # df = create_logarithm_dataframe(df)
     # move the dataframe to a numpy array
     array = np.array(df)
     # move the last row to the label

@@ -67,9 +67,9 @@ class RNN(torch.nn.Module):
                                 batch_first=True)
         # create the initial hidden state
         # hidden has shape num_layers, batch_size, hidden_size
-        self.hidden = torch.ones(self.num_layers,
-                                 self.batch_size,
-                                 self.hidden_size)
+        self.hidden = torch.zeros(self.num_layers,
+                                  self.batch_size,
+                                  self.hidden_size)
         # create the link layer i.e. the conversion from hidden_size to size_1
         self.link_layer = torch.nn.Linear(self.hidden_size, 1000)
         # create the dense layer i.e. the conversion from size_1 to size_2
@@ -199,9 +199,9 @@ class RNNCNN(torch.nn.Module):
                                 batch_first=True)
         # create the initial hidden state
         # hidden has shape num_layers, batch_size, hidden_size
-        self.hidden = torch.ones(self.num_layers,
-                                 self.batch_size,
-                                 self.hidden_size)
+        self.hidden = torch.zeros(self.num_layers,
+                                  self.batch_size,
+                                  self.hidden_size)
         # create the link layer i.e. the conversion from hidden_size to size_1
         self.link_layer = torch.nn.Linear(self.hidden_size, 1000)
         # create the convolutional neural network

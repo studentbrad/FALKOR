@@ -33,15 +33,13 @@ def _train(dataloader, model, optimizer, error_func):
     losses = []
     for inputs, labels in dataloader:
         inputs, labels = inputs.float(), labels.float()
-        inputs[inputs != inputs] = 0.
-        inputs = torch.clamp(inputs, 0., 1000.)
         model.train()
         model.zero_grad()
         outputs = model(inputs)
-        loss = error_func(outputs[:, -1, :], labels)
+        loss = error_func(outputs, labels)
         losses.append(loss)
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1e-1)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.)
         optimizer.step()
     loss = round(float(sum(losses)) / len(losses), 6)
     return loss
@@ -59,13 +57,11 @@ def _valid(dataloader, model, error_func):
         losses = []
         for inputs, labels in dataloader:
             inputs, labels = inputs.float(), labels.float()
-            inputs[inputs != inputs] = 0.
-            inputs = torch.clamp(inputs, 0., 1000.)
             model.eval()
             model.zero_grad()
             outputs = model(inputs)
-            loss = error_func(outputs[:, -1, :], labels)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1e-1)
+            loss = error_func(outputs, labels)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.)
             losses.append(loss)
     loss = round(float(sum(losses)) / len(losses), 6)
     return loss
@@ -86,18 +82,6 @@ def train(model, optimizer, error_func, num_epochs, train_dl, valid_dl):
         train_loss = _train(train_dl, model, optimizer, error_func)
         valid_loss = _valid(valid_dl, model, error_func)
         print(f'train loss: {train_loss}, valid loss: {valid_loss}')
-
-
-def rmse(x, y):
-    """
-    Calculate the root mean squared error (RMSE).
-    :param x: predicted value
-    :param y: value
-    :return: rmse
-    """
-    mse = torch.nn.MSELoss()
-    rmse = torch.sqrt(mse(x, y))
-    return rmse
 
 
 def train_on_directory(directory, model, model_type, num_epochs, lr):
@@ -129,7 +113,7 @@ def train_on_directory(directory, model, model_type, num_epochs, lr):
                                         window=100,
                                         step=100)
         for df in dfs:
-            nn_input, nn_label = create_input_label(df)
+            nn_input, nn_label = create_input_label(df, drop_nan=True)
             nn_inputs.append(nn_input)
             nn_labels.append(nn_label)
     # only take a portion of inputs for training
@@ -147,7 +131,7 @@ def train_on_directory(directory, model, model_type, num_epochs, lr):
     #                                        shuffle=True,
     #                                        num_workers=1)
     optimizer = torch.optim.Adam(model.parameters(), lr)
-    # train(model, optimizer, rmse, num_epochs, train_dl, valid_dl)
+    # train(model, optimizer, torch.nn.MSELoss(), num_epochs, train_dl, valid_dl)
     for i in range(len(nn_inputs)):
         nn_inputs[i] = torch.Tensor(nn_inputs[i])
     for i in range(len(nn_labels)):
@@ -156,15 +140,15 @@ def train_on_directory(directory, model, model_type, num_epochs, lr):
         losses = []
         for nn_input, nn_label in zip(nn_inputs, nn_labels):
             nn_input, nn_label = nn_input.float(), nn_label.float()
-            nn_input[nn_input != nn_input] = 0.
             nn_input = torch.clamp(nn_input, 0., 1000.)
+            nn_label = torch.clamp(nn_input, 0., 1000.)
             model.train()
             model.zero_grad()
             nn_output = model(nn_input.unsqueeze(0))
-            loss = rmse(nn_output[:, -1, :], nn_label)
+            loss = torch.nn.MSELoss()(nn_output, nn_label.unsqueeze(0))
             losses.append(loss)
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1e-1)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.)
             optimizer.step()
         loss = round(float(sum(losses)) / len(losses), 6)
         print(f'loss: {loss}')
@@ -202,7 +186,7 @@ def main():
     directory = 'data'
     model = 'RNN'
     model_path = 'model.pth'
-    num_epochs = 20
+    num_epochs = 40
     lr = 1e-3
     if model == 'RNN':
         train_rnn(directory, model_path, num_epochs, lr)

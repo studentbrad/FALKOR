@@ -200,10 +200,11 @@ def create_logarithm_dataframe(df, start_index=1, end_index=None):
     return df
 
 
-def create_rnn_input_label(df, return_df=False):
+def create_rnn_input_label(df, drop_nan=False, return_df=False):
     """
     Takes a dataframe and creates an Recurrent Neural Network (RNN) input and label.
     :param df: dataframe
+    :param drop_nan: drop rows with nan
     :param return_df: return the formatted dataframe
     :return: input, label, dataframe (optional)
     """
@@ -215,22 +216,26 @@ def create_rnn_input_label(df, return_df=False):
     df = create_relative_dataframe(df)
     # create a logarithm dataframe
     # df = create_logarithm_dataframe(df)
+    # drop rows with nan
+    if drop_nan:
+        df = df.dropna()
     # move the dataframe to a numpy array
     array = np.array(df)
-    # move the last row to the label
-    rnn_label = array[-1]
-    # remove the first row and the last row from the input
+    # remove the first row and the last row from the array
     rnn_input = array[1:-1]
+    # remove the first two rows from the array
+    rnn_label = array[2:]
     if return_df:
         return rnn_input, rnn_label, df
     else:
         return rnn_input, rnn_label
 
 
-def create_cnn_input_label(df, return_df=False):
+def create_cnn_input_label(df, drop_nan=False, return_df=False):
     """
     Takes a dataframe and creates a Convolutional Neural Network (CNN) input and label.
     :param df: dataframe
+    :param drop_nan: drop rows with nan
     :param return_df: return the formatted dataframe
     :return: input, label, dataframe (optional)
     """
@@ -238,6 +243,9 @@ def create_cnn_input_label(df, return_df=False):
     df = format_dataframe(df)
     # add technical indicators
     df = add_technical_indicators(df)
+    # drop rows with nan
+    if drop_nan:
+        df = df.dropna()
     # create the marketcolors
     marketcolors = mpf.make_marketcolors(up='green',
                                          down='red',
@@ -286,7 +294,7 @@ def create_cnn_input_label(df, return_df=False):
     # df = create_logarithm_dataframe(df)
     # move the dataframe to a numpy array
     array = np.array(df)
-    # move the last row to the label
+    # remove all rows from the array, except for the last row
     cnn_label = array[-1]
     if return_df:
         return cnn_input, cnn_label, df

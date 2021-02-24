@@ -239,8 +239,8 @@ def create_cnn_input_label(df, drop_nan=False, lower=None, upper=None, return_df
     Takes a dataframe and creates a Convolutional Neural Network (CNN) input and label.
     :param df: dataframe
     :param drop_nan: drop rows with nan
-    :param lower: minimum value
-    :param upper: maximum value
+    :param lower: lower bound
+    :param upper: lower bound
     :param return_df: return the formatted dataframe
     :return: input, label, dataframe (optional)
     """

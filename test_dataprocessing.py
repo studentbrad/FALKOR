@@ -140,7 +140,8 @@ def test_create_rnn_input_label():
         rows, columns = rnn_input.shape
         assert rows == window - 2
         assert columns == 13
-        columns, = rnn_label.shape
+        rows, columns = rnn_label.shape
+        assert rows == window - 2
         assert columns == 13
 
 

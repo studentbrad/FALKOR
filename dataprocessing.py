@@ -200,11 +200,13 @@ def create_logarithm_dataframe(df, start_index=1, end_index=None):
     return df
 
 
-def create_rnn_input_label(df, drop_nan=False, return_df=False):
+def create_rnn_input_label(df, drop_nan=False, lower=None, upper=None, return_df=False):
     """
     Takes a dataframe and creates an Recurrent Neural Network (RNN) input and label.
     :param df: dataframe
     :param drop_nan: drop rows with nan
+    :param lower: lower bound
+    :param upper: upper bound
     :param return_df: return the formatted dataframe
     :return: input, label, dataframe (optional)
     """
@@ -215,10 +217,11 @@ def create_rnn_input_label(df, drop_nan=False, return_df=False):
     # create a relative dataframe
     df = create_relative_dataframe(df)
     # create a logarithm dataframe
-    # df = create_logarithm_dataframe(df)
+    df = create_logarithm_dataframe(df)
     # drop rows with nan
-    if drop_nan:
-        df = df.dropna()
+    df = df.dropna() if drop_nan else df
+    # clip values outside the bounds
+    df = df.clip(lower, upper)
     # move the dataframe to a numpy array
     array = np.array(df)
     # remove the first row and the last row from the array
@@ -231,11 +234,13 @@ def create_rnn_input_label(df, drop_nan=False, return_df=False):
         return rnn_input, rnn_label
 
 
-def create_cnn_input_label(df, drop_nan=False, return_df=False):
+def create_cnn_input_label(df, drop_nan=False, lower=None, upper=None, return_df=False):
     """
     Takes a dataframe and creates a Convolutional Neural Network (CNN) input and label.
     :param df: dataframe
     :param drop_nan: drop rows with nan
+    :param lower: minimum value
+    :param upper: maximum value
     :param return_df: return the formatted dataframe
     :return: input, label, dataframe (optional)
     """
@@ -244,8 +249,9 @@ def create_cnn_input_label(df, drop_nan=False, return_df=False):
     # add technical indicators
     df = add_technical_indicators(df)
     # drop rows with nan
-    if drop_nan:
-        df = df.dropna()
+    df = df.dropna() if drop_nan else df
+    # clip values outside the bounds
+    df = df.clip(lower, upper)
     # create the marketcolors
     marketcolors = mpf.make_marketcolors(up='green',
                                          down='red',
@@ -291,7 +297,7 @@ def create_cnn_input_label(df, drop_nan=False, return_df=False):
     # create a relative dataframe
     df = create_relative_dataframe(df)
     # create a logarithm dataframe
-    # df = create_logarithm_dataframe(df)
+    df = create_logarithm_dataframe(df)
     # move the dataframe to a numpy array
     array = np.array(df)
     # remove all rows from the array, except for the last row

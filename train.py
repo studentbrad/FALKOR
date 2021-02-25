@@ -21,13 +21,13 @@ from models import \
     save_model
 
 
-def _train(dataloader, model, optimizer, error_func):
+def _train(dataloader, model, optimizer, criterion):
     """
     Internal function for training a model.
     :param dataloader: dataloader
     :param model: model
     :param optimizer: optimizer
-    :param error_func: error function
+    :param criterion: criterion
     :return: average loss
     """
     losses = []
@@ -36,21 +36,21 @@ def _train(dataloader, model, optimizer, error_func):
         model.train()
         model.zero_grad()
         outputs = model(inputs)
-        loss = error_func(outputs, labels)
+        loss = criterion(outputs, labels)
         losses.append(loss)
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1e-1)
         optimizer.step()
     loss = round(float(sum(losses)) / len(losses), 6)
     return loss
 
 
-def _valid(dataloader, model, error_func):
+def _valid(dataloader, model, criterion):
     """
     Internal function for validating a model.
     :param dataloader: dataloader
     :param model: model
-    :param error_func: error function
+    :param criterion: criterion
     :return: average loss
     """
     with torch.no_grad():
@@ -60,38 +60,26 @@ def _valid(dataloader, model, error_func):
             model.eval()
             model.zero_grad()
             outputs = model(inputs)
-            loss = error_func(outputs, labels)
+            loss = criterion(outputs, labels)
             losses.append(loss)
     loss = round(float(sum(losses)) / len(losses), 6)
     return loss
 
 
-def rmse(x, y):
-    """
-    Compute the root mean squared error (RMSE).
-    :param x: first value(s)
-    :param y: second value(s)
-    :return: rmse
-    """
-    mse = torch.nn.MSELoss()
-    rmse = torch.sqrt(mse(x, y))
-    return rmse
-
-
-def train(model, optimizer, error_func, num_epochs, train_dl, valid_dl):
+def train(model, optimizer, criterion, num_epochs, train_dl, valid_dl):
     """
     Train a model.
     :param model: model
     :param optimizer: optimizer
-    :param error_func: error function
+    :param criterion: criterion
     :param num_epochs: number of epochs
     :param train_dl: train dataloader
     :param valid_dl: validate dataloader
     :return: None
     """
     for epoch in range(num_epochs):
-        train_loss = _train(train_dl, model, optimizer, error_func)
-        valid_loss = _valid(valid_dl, model, error_func)
+        train_loss = _train(train_dl, model, optimizer, criterion)
+        valid_loss = _valid(valid_dl, model, criterion)
         print(f'Epoch: {epoch + 1:03}... Training Loss: {train_loss:.6f}... Validation Loss: {valid_loss:.6f}')
 
 
@@ -124,7 +112,11 @@ def train_on_directory(directory, model, model_type, num_epochs, lr):
                                         window=100,
                                         step=100)
         for df in dfs:
-            nn_input, nn_label = create_input_label(df, drop_nan=True, lower=0., upper=1000.)
+            nn_input, nn_label = create_input_label(df,
+                                                    drop_nan=True,
+                                                    fill_nan=True,
+                                                    lower=0.,
+                                                    upper=1000.)
             nn_inputs.append(nn_input)
             nn_labels.append(nn_label)
     # only take a portion of inputs for training
@@ -142,7 +134,9 @@ def train_on_directory(directory, model, model_type, num_epochs, lr):
                                            shuffle=True,
                                            num_workers=1)
     optimizer = torch.optim.Adam(model.parameters(), lr)
-    train(model, optimizer, rmse, num_epochs, train_dl, valid_dl)
+    criterion = torch.nn.MSELoss()
+    print(f'Training the {model_type} model...')
+    train(model, optimizer, criterion, num_epochs, train_dl, valid_dl)
     # for i in range(len(nn_inputs)):
     #     nn_inputs[i] = torch.Tensor(nn_inputs[i])
     # for i in range(len(nn_labels)):
@@ -154,7 +148,7 @@ def train_on_directory(directory, model, model_type, num_epochs, lr):
     #         model.train()
     #         model.zero_grad()
     #         nn_output = model(nn_input.unsqueeze(0))
-    #         train_loss = rmse(nn_output, nn_label.unsqueeze(0))
+    #         train_loss = criterion(nn_output, nn_label.unsqueeze(0))
     #         train_losses.append(train_loss)
     #         train_loss.backward()
     #         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.)
@@ -167,7 +161,7 @@ def train_on_directory(directory, model, model_type, num_epochs, lr):
     #             model.eval()
     #             model.zero_grad()
     #             nn_output = model(nn_input.unsqueeze(0))
-    #             valid_loss = rmse(nn_output, nn_label.unsqueeze(0))
+    #             valid_loss = criterion(nn_output, nn_label.unsqueeze(0))
     #             valid_losses.append(valid_loss)
     #     valid_loss = round(float(sum(valid_losses)) / len(valid_losses), 6)
     #     print(f'Epoch: {epoch + 1:03}... Training Loss: {train_loss:.6f}... Validation Loss: {valid_loss:.6f}')
@@ -203,7 +197,7 @@ def train_cnn(directory, model_path, num_epochs, lr):
 
 def main():
     directory = 'data'
-    model = 'RNN'
+    model = 'CNN'
     model_path = 'model.pth'
     num_epochs = 40
     lr = 1e-3

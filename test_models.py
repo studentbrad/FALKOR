@@ -22,10 +22,9 @@ class TestRNN:
         model = RNN(13, 100, 1, 100, 3)
         x = torch.FloatTensor(1, 100, 13)
         output = model(x)
-        batch_size, rows, columns = output.size()
+        batch_size, size = output.size()
         assert batch_size == 1
-        assert rows == 100
-        assert columns == 13
+        assert size == 13
 
 
 class TestCNN:
@@ -55,11 +54,10 @@ class TestRNNCNN:
         Tests the model inputs/outputs.
         """
         model = RNNCNN(13, 100, 1, 100, 3)
-        rnn_input = torch.FloatTensor(1, 100, 13)
-        cnn_input = torch.FloatTensor(1, 3, 214, 214)
-        x = (rnn_input, cnn_input)
+        rnn_x = torch.FloatTensor(1, 100, 13)
+        cnn_x = torch.FloatTensor(1, 3, 214, 214)
+        x = (rnn_x, cnn_x)
         output = model(x)
-        batch_size, rows, columns = output.size()
+        batch_size, size = output.size()
         assert batch_size == 1
-        assert rows == 100
-        assert columns == 13
+        assert size == 13

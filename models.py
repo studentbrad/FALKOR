@@ -91,6 +91,8 @@ class RNN(torch.nn.Module):
         # apply the recurrent neural network
         # x has shape batch_size, num_rows, num_features
         x, self.hidden = self.rnn(x, self.hidden)
+        # take only the last row of the output
+        x = x[:, -1]
         # detach the hidden layer to prevent further back-propagating
         # i.e. fix the vanishing gradient problem
         self.hidden = self.hidden.detach()
@@ -227,6 +229,8 @@ class RNNCNN(torch.nn.Module):
         # apply the recurrent neural network
         # rnn_x has shape batch_size, num_rows, num_features
         rnn_x, self.hidden = self.rnn(rnn_x, self.hidden)
+        # take only the last row of the output
+        rnn_x = rnn_x[:, -1]
         # detach the hidden layer to prevent further back-propagating
         # i.e. fix the vanishing gradient problem
         self.hidden = self.hidden.detach()
@@ -240,21 +244,21 @@ class RNNCNN(torch.nn.Module):
         # apply a weighted average
         # rnn_x has shape batch_size, num_rows, size_1
         # cnn_x has shape batch_size, size_1
-        rnn_x[:, -1, :] = (rnn_x[:, -1, :] * weight).add(cnn_x * (1. - weight))
+        x = (rnn_x * weight).add(cnn_x * (1. - weight))
         # apply four fully-connected linear layers with relu activation function
-        # rnn_x has shape batch_size, num_rows, size_1
-        rnn_x = self.dense1(rnn_x)
-        rnn_x = torch.nn.functional.relu(rnn_x)
-        # rnn_x has shape batch_size, num_rows, size_2
-        rnn_x = self.dense2(rnn_x)
-        rnn_x = torch.nn.functional.relu(rnn_x)
-        # rnn_x has shape batch_size, num_rows, size_3
-        rnn_x = self.dense3(rnn_x)
-        # rnn_x = torch.nn.functional.relu(rnn_x)
-        # # rnn_x has shape batch_size, num_rows, size_4
-        # rnn_x = self.dense4(rnn_x)
-        # # rnn_x has shape batch_size, num_rows, size_5
-        return rnn_x
+        # x has shape batch_size, num_rows, size_1
+        x = self.dense1(x)
+        x = torch.nn.functional.relu(x)
+        # x has shape batch_size, num_rows, size_2
+        x = self.dense2(x)
+        x = torch.nn.functional.relu(x)
+        # x has shape batch_size, num_rows, size_3
+        x = self.dense3(x)
+        # x = torch.nn.functional.relu(x)
+        # # x has shape batch_size, num_rows, size_4
+        # x = self.dense4(x)
+        # # x has shape batch_size, num_rows, size_5
+        return x
 
     def load_cnn_weights(self, cnn):
         """

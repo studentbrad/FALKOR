@@ -4,9 +4,13 @@ This module contains all training for network models.
 
 import os
 
+import matplotlib
+import matplotlib.pyplot as plt
 import pandas as pd
 import torch
 from sklearn.utils import shuffle
+
+matplotlib.use('agg')
 
 from dataprocessing import \
     create_smaller_dataframes, \
@@ -21,9 +25,24 @@ from models import \
     save_model
 
 
-def _train(dataloader, model, optimizer, criterion):
+def draw_curve(epochs, train_losses, valid_losses):
     """
-    Internal function for training a model.
+    Draw the training and validation curves.
+    :param epochs: epochs
+    :param train_losses: training losses
+    :param valid_losses: validation losses
+    :return: None
+    """
+    fig = plt.figure()
+    ax0 = fig.add_subplot(121, title="loss")
+    ax0.plot(epochs, train_losses, 'bo-', label='train')
+    ax0.plot(epochs, valid_losses, 'ro-', label='valid')
+    fig.savefig('train.jpg')
+
+
+def train(dataloader, model, optimizer, criterion):
+    """
+    Train a model.
     :param dataloader: dataloader
     :param model: model
     :param optimizer: optimizer
@@ -45,9 +64,9 @@ def _train(dataloader, model, optimizer, criterion):
     return loss
 
 
-def _valid(dataloader, model, criterion):
+def valid(dataloader, model, criterion):
     """
-    Internal function for validating a model.
+    Validate a model.
     :param dataloader: dataloader
     :param model: model
     :param criterion: criterion
@@ -66,9 +85,9 @@ def _valid(dataloader, model, criterion):
     return loss
 
 
-def train(model, optimizer, criterion, num_epochs, train_dl, valid_dl):
+def train_and_valid(model, optimizer, criterion, num_epochs, train_dl, valid_dl):
     """
-    Train a model.
+    Train and validate a model.
     :param model: model
     :param optimizer: optimizer
     :param criterion: criterion
@@ -77,10 +96,16 @@ def train(model, optimizer, criterion, num_epochs, train_dl, valid_dl):
     :param valid_dl: validate dataloader
     :return: None
     """
-    for epoch in range(num_epochs):
-        train_loss = _train(train_dl, model, optimizer, criterion)
-        valid_loss = _valid(valid_dl, model, criterion)
-        print(f'Epoch: {epoch + 1:03}... Training Loss: {train_loss:.6f}... Validation Loss: {valid_loss:.6f}')
+    epochs = range(1, num_epochs + 1)
+    train_losses = []
+    valid_losses = []
+    for epoch in epochs:
+        train_loss = train(train_dl, model, optimizer, criterion)
+        valid_loss = valid(valid_dl, model, criterion)
+        print(f'Epoch: {epoch:03}... Training Loss: {train_loss:.6f}... Validation Loss: {valid_loss:.6f}')
+        train_losses.append(train_loss)
+        valid_losses.append(valid_loss)
+    draw_curve(epochs, train_losses, valid_losses)
 
 
 def train_on_directory(directory, model, model_type, num_epochs, lr):
@@ -135,8 +160,8 @@ def train_on_directory(directory, model, model_type, num_epochs, lr):
                                            num_workers=1)
     optimizer = torch.optim.Adam(model.parameters(), lr)
     criterion = torch.nn.MSELoss()
-    print(f'Training the {model_type} model...')
-    train(model, optimizer, criterion, num_epochs, train_dl, valid_dl)
+    print(f'Training and validating the {model_type} model...')
+    train_and_valid(model, optimizer, criterion, num_epochs, train_dl, valid_dl)
     # for i in range(len(nn_inputs)):
     #     nn_inputs[i] = torch.Tensor(nn_inputs[i])
     # for i in range(len(nn_labels)):
@@ -151,7 +176,7 @@ def train_on_directory(directory, model, model_type, num_epochs, lr):
     #         train_loss = criterion(nn_output, nn_label.unsqueeze(0))
     #         train_losses.append(train_loss)
     #         train_loss.backward()
-    #         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.)
+    #         torch.nn.utils.clip_grad_norm_(model.parameters(), 1e-1)
     #         optimizer.step()
     #     train_loss = round(float(sum(train_losses)) / len(train_losses), 6)
     #     valid_losses = []
@@ -198,7 +223,7 @@ def train_cnn(directory, model_path, num_epochs, lr):
 def main():
     directory = 'data'
     model = 'CNN'
-    model_path = 'model.pth'
+    model_path = 'models/model.pth'
     num_epochs = 40
     lr = 1e-3
     if model == 'RNN':

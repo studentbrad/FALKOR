@@ -219,10 +219,10 @@ def create_rnn_input_label(df, drop_nan=False, fill_nan=False, lower=None, upper
     df = df.dropna() if drop_nan else df
     # create a relative dataframe
     df = create_relative_dataframe(df)
-    # create a logarithm dataframe
-    df = create_logarithm_dataframe(df)
+    # # create a logarithm dataframe
+    # df = create_logarithm_dataframe(df)
     # clip values outside the bounds
-    df = df.clip(lower, upper)
+    df = df.clip(lower, upper)  # TODO: only clip values past the first row
     # fill nans with zeros
     df = df.fillna(0.) if fill_nan else df
     # move the dataframe to a numpy array
@@ -230,7 +230,7 @@ def create_rnn_input_label(df, drop_nan=False, fill_nan=False, lower=None, upper
     # remove the first row and the last row from the array
     rnn_input = array[1:-1]
     # remove the first two rows from the array
-    rnn_label = array[2:]
+    rnn_label = array[-1]
     if return_df:
         return rnn_input, rnn_label, df
     else:
@@ -298,10 +298,10 @@ def create_cnn_input_label(df, drop_nan=False, fill_nan=False, lower=None, upper
     plt.close(fig)
     # create a relative dataframe
     df = create_relative_dataframe(df)
-    # create a logarithm dataframe
-    df = create_logarithm_dataframe(df)
+    # # create a logarithm dataframe
+    # df = create_logarithm_dataframe(df)
     # clip values outside the bounds
-    df = df.clip(lower, upper)
+    df = df.clip(lower, upper)  # TODO: only clip values past the first row
     # fill nans with zeros
     df = df.fillna(0.) if fill_nan else df
     # move the dataframe to a numpy array
